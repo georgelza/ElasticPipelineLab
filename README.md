@@ -27,7 +27,9 @@ The deployment follows a modern log analytics architecture with the following co
 - **RustFS**: S3 tiered storage solution for long-term log retention
 
 
-GIT: [Elastic Pipeline Lab](https://github.com/georgelza/ElasticPipelineLab)
+### Project Git
+
+[Elastic Pipeline Lab](https://github.com/georgelza/ElasticPipelineLab)
 
 ---
 

@@ -47,3 +47,7 @@ All components deploy to the `elastic` namespace.
 All Elasticsearch data is stored on a PersistentVolume mounted at `/data/elasticsearch`.
 
 FluentBit is deployed as a DaemonSet to collect logs from containers via `/var/lib/docker/containers/` and forward them to Kafka through the `filebeat-logs` topic.
+
+## Selective Ingestion Configuration
+
+For selective log ingestion, please refer to [FLUENTBIT_SELECTIVE_INGEST.md](/FLUENTBIT_SELECTIVE_INGEST.md) for detailed instructions on filtering logs by namespace or service labels.

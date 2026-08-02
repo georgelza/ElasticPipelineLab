@@ -16,7 +16,7 @@ help:
 .PHONY: help
 
 
-pull: confluent db
+pull: confluent
 
 build: connect 
 
@@ -28,10 +28,6 @@ confluent:
 	docker pull confluentinc/cp-schema-registry:7.9.6
 	docker pull confluentinc/cp-enterprise-control-center:7.9.6
 	docker pull confluentinc/cp-kcat:7.9.6
-
-db:
-	docker pull redis:8.0-bookworm
-	docker pull postgres:15
 	
 connect:
 	cd connect; make build
