@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: elastic
+data:
+  elasticsearch.yml: |
+    cluster.name: "elastic-cluster"
+    node.name: "elasticsearch-master"
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    # Security settings
+    xpack.security.enabled: true
+    xpack.security.transport.ssl.enabled: true
+    xpack.security.transport.ssl.verification_mode: certificate
+    xpack.security.transport.ssl.keystore.path: certs/elastic-certificates.p12
+    xpack.security.transport.ssl.truststore.path: certs/elastic-certificates.p12
+    xpack.security.http.ssl.enabled: true
+    xpack.security.http.ssl.keystore.path: certs/elastic-certificates.p12
+    xpack.security.http.ssl.truststore.path: certs/elastic-certificates.p12
+    # Storage settings
+    path.data: /usr/share/elasticsearch/data
+    path.logs: /usr/share/elasticsearch/logs
+    # Performance settings
+    indices.memory.index_buffer_size: 25%
+    indices.fielddata.cache.size: 25%
+    index.codec: best_compression

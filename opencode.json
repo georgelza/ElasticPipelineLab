@@ -1,0 +1,172 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "omlx": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "oMLX",
+      "options": {
+        "baseURL": "http://127.0.0.1:8000/v1",
+        "apiKey": "omlx"
+      },
+      "models": {
+        "Qwen3.6-35B-A3B-MLX-4bit": {
+          "name": "Qwen3.6-35B-A3B-MLX-4bit",
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },
+        "Qwen3.6-27B-MLX-6bit": {
+          "name": "Qwen3.6-27B-MLX-6bit",
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },
+        "Qwen3-Coder-30B-A3B-Instruct-MLX-5bit": {
+          "name": "Qwen3-Coder-30B-A3B-Instruct-MLX-5bit",
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },
+        "NVIDIA-Nemotron-3-Nano-30B-A3B-MLX-5bit": {
+          "name": "NVIDIA-Nemotron-3-Nano-30B-A3B-MLX-5bit",
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        },    
+        "gemma-4-26b-a4b-it-4bit": {
+          "name": "gemma-4-26b-a4b-it-4bit",
+          "modalities": {
+            "input": ["text", "image"],
+            "output": ["text"]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        }    
+      }
+    }
+  },
+  "permission": {
+    "*": "allow",
+    "edit": {
+      "/Users/george/Desktop/Elastic/*": "allow"
+    },
+    "read": {
+      "/Users/george/Desktop/Elastic/*": "allow"
+    }
+  },
+  "lsp": {
+    "typescript": {
+      "disabled": false,
+      "command": [
+        "bun",
+        "run",
+        "--bun",
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": ["ts", "tsx", "js", "jsx"]
+    },
+    "pyright": {
+      "disabled": false,
+      "command": ["pyright-langserver", "--stdio"],
+      "extensions": ["py", "pyi"]
+    },
+    "go": {
+      "disabled": false,
+      "command": ["gopls"],
+      "extensions": ["go", "mod", "sum"]
+    }
+  },
+  "mcp": {
+    "kafka": {
+      "type": "local",
+      "command": ["npx", "-y", "mcp-server-kafka"],
+      "enabled": true,
+      "environment": {
+        "KAFKA_BROKERS": "localhost:9092"
+      }
+    },
+    "elasticsearch-kibana": {
+      "type": "local",
+      "command": ["npx", "-y", "mcp-server-elastic"],
+      "enabled": true,
+      "environment": {
+        "ELASTICSEARCH_URL": "http://localhost:9200",
+        "KIBANA_URL": "http://localhost:5601"
+      }
+    },
+    "svg-diagrams": {
+      "type": "local",
+      "command": ["npx", "-y", "plantuml-mcp-server"],
+      "enabled": true
+    },
+    "api-protocol-testing": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-fetch"],
+      "enabled": true
+    }
+  },
+  "shell": "bash",
+  "disabled_providers": [],
+  "instructions": [
+    "ToDo.md",
+    "Always respond in English. Never use any other language for responses, code comments, documentation, or chat."
+  ],
+  "model": "omlx/Qwen3-Coder-30B-A3B-Instruct-MLX-5bit",
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "omlx/Qwen3-Coder-30B-A3B-Instruct-MLX-5bit",
+      "prompt": "{file:/Users/george/.config/opencode/prompts/build.txt}",
+      "permissions": {
+        "*": "allow"
+      }
+    },
+    "plan": {
+      "description": "Trigger this to construct system architectural designs, roadmaps, step-by-step refactoring strategies, and structural breakdowns before implementation.",
+      "mode": "subagent",
+      "model": "omlx/Qwen3-Coder-30B-A3B-Instruct-MLX-5bit",
+      "prompt": "You are a software architect. Focus on high-level architecture, system dependencies, component design, and structured execution plans. Generates architectural diagrams in SVG (scalable vector graphics), and sequence diagrams using PlantUML format. Do not edit workspace files directly.",
+      "permissions": {
+        "edit": "deny",
+        "bash": "deny"
+      }
+    },
+    "code-reviewer": {
+      "description": "Trigger this to review Go, Python, JS/TS code, PNG architecture flowcharts, and SVG (scalable vector graphics) based sequence diagrams.",
+      "mode": "subagent",
+      "model": "omlx/NVIDIA-Nemotron-3-Nano-30B-A3B-MLX-5bit",
+      "prompt": "You are a senior full-stack code and diagram reviewer. Specializing in high-throughput Go microservices, Python automation tools, real-time JS apps, and architectural visual assets (PNG flowcharts, SVG diagrams and PlantUML format). Focus on concurrency safety, resource cleanup, protocol accuracy, and visual structural integrity.",
+      "permissions": {
+        "edit": "deny"
+      }
+    }
+  }
+}

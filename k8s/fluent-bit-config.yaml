@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: elastic
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush     1
+        Log_Level info
+
+    [INPUT]
+        Name        tail
+        Path        /var/log/*.log
+        Parser      docker
+        Refresh_Interval 5
+        Exit_On_Eof true
+
+    [INPUT]
+        Name        tail
+        Path        /var/lib/docker/containers/*/*-json.log
+        Parser      docker
+        Refresh_Interval 5
+        Exit_On_Eof true
+
+    [FILTER]
+        Name modify
+        Match *
+        Add timestamp ${UNIXTIME}
+
+    [OUTPUT]
+        Name kafka
+        Match *
+        brokers kafka:29092
+        topics filebeat-logs
+        format json
