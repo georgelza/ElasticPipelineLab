@@ -1,10 +1,12 @@
 # ElasticSearch Stack Log Analytics Pipeline
 
-This repository contains the complete deployment configuration for an Elastic Stack log analytics pipeline. 
+This repository contains the complete deployment configuration for an [Elastic Stack](https://www.elastic.co) log analytics pipeline. 
 
-The solution includes Syslog forwardig onto Syslog-ng, Fluentbit and Filebeat, all configured t publish to Kafka topics.
+The solution includes [Syslog](https://en.wikipedia.org/wiki/Syslog) forwardig onto [Syslog-ng](https://en.wikipedia.org/wiki/Syslog-ng), [Fluentbit](https://fluentbit.io) and [Filebeat](https://www.elastic.co/beats/filebeat) part of the [Beats framework](https://www.elastic.co/beats) of lightweight data shippers, all configured to publish to [Kafka](https://kafka.apache.org) topics.
 
-Our Topics to be configured with a Kafka Sink Connector jobs, persisting our log streams into Elasticsearch, enabling comprehensive log collection and analysis solution.
+Our Topics to be utlise the [Kafka Connect](https://www.confluent.io/lp/confluent-connectors/) framework via Kafka Sink Connector jobs, persisting our log streams into [ElasticSearch](https://www.elastic.co), enabling comprehensive log collection and analysis solution.
+
+For Lab purposes we're deploying everything onto [Docker Compose](https://docs.docker.com/compose/) and a [Kubernetes](https://kubernetes.io) environment hosted on a [vCluster](https://www.vcluster.com) stack via VIND
 
 ## Architecture Overview
 
@@ -12,9 +14,9 @@ The deployment follows a modern log analytics architecture with the following co
 
 ### Core Stack
 
-- **Elasticsearch**: Distributed search and analytics engine for log storage
+- **Elasticsearch**: Distributed search and analytics engine for log storage, little known fact, it's a Vector database at it's core, as such allows for  much wider set of use cases. 
 - **Kibana**: Web interface for data visualization and exploration
-- **Filebeat**: Lightweight log shipper for Kubernetes pod logs
+- **Filebeat**: Lightweight log shipper, for our use case, for Kubernetes pod logs
 
 ### Log Collection
 
@@ -39,18 +41,26 @@ The deployment follows a modern log analytics architecture with the following co
 
 ## Deployment Flow
 
+The Below is the world of the possible..., we will be deploying most, except for the various Log4J input feeds and AI Integration consumption.
+
 ```mermaid
 graph TD
     A[Syslog Sources] --> B[Syslog-NG Forwarder] 
-    C[Filebeat Agents] --> D[Kafka Topic]
-    B --> D
-    D --> E[Kafka Connect]
+    C[Filebeat - K8s Agents] --> X[Kafka Topic]
+    D[K8s Deployments] --> H
+    Y[Log4J] --> X
+    M[Log4J] --> L
+    I[OS-level Syslog] --> X
+    J[OS-level Filebeat] --> X
+    L[OS-Level Filebeat] --> X
+    H[FluentBit] --> X
+    B --> X
+    X --> E[Kafka Connect]
     E --> F[Elasticsearch]
     F --> K[S3 Object Store]
     F --> G[Kibana UI]
-    H[FluentBit] --> D
-    I[OS-level Syslog] --> D
-    J[OS-level Filebeat] --> D
+    F --> N[AI Model]
+
 ```
 
 ---
