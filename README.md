@@ -8,6 +8,8 @@ Our Topics to be utlise the [Kafka Connect](https://www.confluent.io/lp/confluen
 
 For Lab purposes we're deploying everything onto [Docker Compose](https://docs.docker.com/compose/) and a [Kubernetes](https://kubernetes.io) environment hosted on a [vCluster](https://www.vcluster.com) stack via VIND
 
+
+
 ## Architecture Overview
 
 The deployment follows a modern log analytics architecture with the following components:
@@ -194,6 +196,8 @@ All Elastic components deployed in the **elastic** namespace for consistent mana
 
 ## macOS Setup Scripts
 
+Our Lab is currently hosted on a Apple MAC, as such we'll be deploying filebeat locally and integrating with the native syslog service.
+
 We provide automated scripts to configure macOS syslog and Filebeat to send logs to our Docker Compose infrastructure:
 
 ### Syslog Setup
@@ -264,6 +268,7 @@ The system provides flexible S3 storage configuration that organizes log data by
 Directory structure: `<S3 endpoint>/<project name>/<aws account name>/year=<year>/month=<month>/day=<day>/<instanceId or Hostname>`
 
 Configuration parameters:
+
 - `S3_ENDPOINT`: The S3 endpoint URL  
 - `S3_PROJECT_NAME`: Project identifier (default: elastic-pipeline)
 - `S3_AWS_ACCOUNT_NAME`: AWS account identifier (default: elastic-account)

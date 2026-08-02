@@ -687,6 +687,28 @@ data:
     flush.timeout.ms=5000
 ```
 
+## 6. Data Segmentation and Security Classification
+
+The system supports multi-bucket segmentation by security classifications including:
+- Production vs Non-Production
+- PCI vs Non-PCI
+- Unregulated vs IFE (Information for Employees)
+
+This allows for proper isolation of log data based on sensitivity levels and compliance requirements. The segmentation is implemented through:
+
+1. **Topic-based Segregation**:
+   - `syslog-topic-prod` for production logs
+   - `syslog-topic-nonprod` for non-production logs
+   - `syslog-topic-pci` for PCI-compliant data
+   - `syslog-topic-nonpci` for non-PCI data
+   - `syslog-topic-ife` for information for employees
+   - `syslog-topic-unregulated` for unregulated data
+
+2. **Connector-based Bucket Assignment**:
+   - Separate Elasticsearch Sink Connectors for each classification
+   - Each connector can target different Elasticsearch clusters/indices
+   - Supports dedicated storage buckets with appropriate retention policies
+
 ## 7. S3 Tiered Storage with RustFS
 
 ### 7.1 RustFS Deployment
