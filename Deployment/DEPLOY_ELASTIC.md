@@ -718,9 +718,9 @@ spec:
         - containerPort: 8080
         env:
         - name: RUSTFS_S3_BUCKET
-          value: "elastic-logs-bucket"
+          value: "${S3_BUCKET_NAME:-elastic-logs-bucket}"
         - name: RUSTFS_S3_REGION
-          value: "us-east-1"
+          value: "${S3_REGION:-af-south-1}"
         resources:
           requests:
             memory: "256Mi"
@@ -729,6 +729,22 @@ spec:
             memory: "512Mi"
             cpu: "500m"
 ```
+
+## S3 Storage Folder Structure
+
+The system implements the following S3 directory structure for log organization:
+
+`<S3 endpoint>/<project name>/<aws account name>/year=<year>/month=<month>/day=<day>/<instanceId or Hostname>`
+
+This structure provides:
+- Hierarchical log organization by date
+- Easy retrieval and archival of logs by date
+- Efficient storage management for long-term log retention
+
+Configuration variables:
+- `S3_PROJECT_NAME`: Project identifier (default: elastic-pipeline)
+- `S3_AWS_ACCOUNT_NAME`: AWS account identifier (default: elastic-account) 
+- `S3_REGION`: AWS region (default: af-south-1)
 
 ### 7.2 RustFS Service
 

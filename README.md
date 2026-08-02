@@ -60,7 +60,6 @@ graph TD
     F --> K[S3 Object Store]
     F --> G[Kibana UI]
     F --> N[AI Model]
-
 ```
 
 ---
@@ -257,6 +256,21 @@ For detailed configuration and setup instructions, see [DEPLOY_FILEBEAT_DOCKER.m
 - Authentication enabled for Elastic components
 - RBAC policies to limit access
 - Network policies to restrict inter-service communication
+
+## S3 Storage Configuration
+
+The system provides flexible S3 storage configuration that organizes log data by a specific directory structure:
+
+Directory structure: `<S3 endpoint>/<project name>/<aws account name>/year=<year>/month=<month>/day=<day>/<instanceId or Hostname>`
+
+Configuration parameters:
+- `S3_ENDPOINT`: The S3 endpoint URL  
+- `S3_PROJECT_NAME`: Project identifier (default: elastic-pipeline)
+- `S3_AWS_ACCOUNT_NAME`: AWS account identifier (default: elastic-account)
+- `S3_BUCKET_NAME`: S3 bucket name (default: my-log-bucket)
+- `S3_REGION`: AWS region (default: af-south-1)
+
+All S3 credentials are stored in environment variables and should be managed securely. The actual storage folder structure is implemented by the RustFS service according to the defined naming convention.
 
 ---
 
