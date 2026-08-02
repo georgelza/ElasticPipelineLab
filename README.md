@@ -1,6 +1,10 @@
 # ElasticSearch Stack Log Analytics Pipeline
 
-This repository contains the complete deployment configuration for an Elastic Stack log analytics pipeline. The solution includes Filebeat, Syslog, Syslog-ng integration with Kafka and Elasticsearch, enabling comprehensive log collection and analysis.
+This repository contains the complete deployment configuration for an Elastic Stack log analytics pipeline. 
+
+The solution includes Syslog forwardig onto Syslog-ng, Fluentbit and Filebeat, all configured t publish to Kafka topics.
+
+Our Topics to be configured with a Kafka Sink Connector jobs, persisting our log streams into Elasticsearch, enabling comprehensive log collection and analysis solution.
 
 ## Architecture Overview
 
