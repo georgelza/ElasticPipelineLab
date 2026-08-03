@@ -1,11 +1,14 @@
 # https://github.com/loft-sh/vind/blob/main/docs/configuration.md
 
-controlPlane:
+# The Below is part of the Enterprise license
+# To deploy with the below included execute with --add=false, otherwise leave commented out.
+# sudo vcluster create my-vc1 --values vcluster.yml --add=false
+# controlPlane:
   # Configure the backing store for vCluster's data
-  backingStore: # Enterprise feature - requires license
-    etcd:
-      embedded: 
-        enabled: true  # Run etcd inside the vCluster pod
+  # backingStore: # Enterprise feature - requires license
+  #   etcd:
+  #     embedded: 
+  #       enabled: true  # Run etcd inside the vCluster pod
 
 experimental:
   docker:

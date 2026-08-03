@@ -45,9 +45,6 @@ kubectl apply -f k8s/10.traefik-ingressroutes.yaml
 ```
 
 > Note: the Elasticsearch + Kibana workloads and the Traefik ingress previously
-> lived under `deps/1.elasticsearch` and `deps/3.traefik-ingress`; they have been
-> moved here (namespace renamed `logging` → `elastic`) and the `deps/` directory
-> has been removed.
 
 ## Details
 
