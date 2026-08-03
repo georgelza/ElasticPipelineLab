@@ -15,7 +15,7 @@
 #   Usage: ./cre_topics.sh
 #
 #   Env: COMPOSE_PROJECT_NAME  Docker Compose project name  (default: elastic)
-#        COMPOSE_FILE          Path to docker-compose.yml  (default: repo root)
+#        COMPOSE_FILE          Path to docker-compose.yml   (default: repo root)
 #
 ################################################################################################################################
 set -euo pipefail
@@ -31,7 +31,6 @@ COMPOSE_FILE="${COMPOSE_FILE:-${ROOT}/docker-compose.yml}"
 TOPICS=(
     "syslog-topic:2:1"
     "filebeat-logs:2:1"
-    "syslog-topic-filebeat-logs:2:1"
     "syslog-topic-prod-pci:2:1"
     "syslog-topic-prod-nonpci:2:1"
     "syslog-topic-prod-pci-ife:2:1"
