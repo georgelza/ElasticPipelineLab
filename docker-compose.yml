@@ -15,10 +15,6 @@ services:
     image: confluentinc/cp-kafka:7.9.6
     container_name: broker
     hostname: broker
-    # networks:
-    #   elastic:
-    #     # Static IP so the k8s FluentBit DaemonSet hostAliases entry stays valid.
-    #     ipv4_address: 172.20.0.2
     ports:
       - "9092:9092"
       - "9101:9101"
@@ -151,8 +147,6 @@ services:
       - RUSTFS_S3_REGION=${S3_REGION}
     volumes:
       - ./data/rustfs:/data
-    depends_on:
-      - broker
 
 
   # Filebeat service for collecting logs and forwarding to Kafka
@@ -177,10 +171,3 @@ services:
 networks:
   default:
     name: elastic
-
-# networks:
-#   elastic:
-#     driver: bridge
-#     ipam:
-#       config:
-#         - subnet: 172.20.0.0/16

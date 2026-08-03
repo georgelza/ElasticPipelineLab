@@ -1,28 +1,18 @@
 # Data Sets and Topic Management
 
-## Topic Configuration and Source Feeds
-
-The system uses multiple topics to manage different data sources:
-
-### Current Topics:
-
-- `syslog-topic`: For syslog-ng forwarded logs
-- `filebeat-logs`: For Filebeat in Docker Compose
-- `filebeat-topic`: For Filebeat (non-Docker Compose)  
-- `fluent-bit-logs`: For FluentBit logs
-- `syslog-topic-*`: For various syslog classifications
+## Configuration and Source Feeds
 
 ### Source Feed Configuration:
 
 Topics are configured in:
 
-1. **Syslog-ng Config** (`conf/syslog-ng-config/syslog-ng.conf`):
+1. **Syslog-ng Config** (`data/syslog-ng/config/syslog-ng.conf`):
 
    ```
    topic("syslog-topic")
    ```
 
-2. **Filebeat Config** (`conf/filebeat.yml`):
+2. **Filebeat Config** (`data/filebeat/config/filebeat.yml`):
 
    ```
    topic: "filebeat-logs"
@@ -62,6 +52,15 @@ Yes, the Elastic "database" can be split into multiple buckets by security class
 
 Create separate topics for each classification:
 
+The system uses multiple topics to manage different data sources:
+
+### Current Topics:
+
+- `syslog-topic`:  For syslog-ng forwarded logs
+- `filebeat-logs`: For Filebeat in Docker Compose
+
+### Planned Topics:
+
 - `syslog-topic-prod-pci` (Production-PCI)
 - `syslog-topic-prod-nonpci` (Production-NonPCI)
 - `syslog-topic-prod-pci-ife` (Production PCI IFE data)
@@ -74,6 +73,8 @@ Create separate topics for each classification:
 - `syslog-topic-nonprod-unregulated` (Non_Production Unregulated data)
 - `syslog-topic-network` (Network data)
 - `syslog-topic-filebeat-logs`
+- `syslog-topic-filebeat-topic`
+- `syslog-topic-fluent-bit-logs`: For FluentBit logs
 - ...
 
 #### 2. Connector-based Bucket Assignment:
