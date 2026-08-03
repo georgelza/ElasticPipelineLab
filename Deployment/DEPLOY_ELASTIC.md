@@ -21,10 +21,10 @@ graph TD
     H[FluentBit DaemonSet] --> D[Kafka - Docker Compose]
     B -->|syslog-topic| D
     D -->|filebeat-logs| E[Kafka Connect ES Sink - Compose]
-    E --> F[Elasticsearch - 2x Deployment on vcluster]
+    E --> F[Elasticsearch Service backed by 2x Deployments on vcluster]
     F --> G[Kibana UI]
-    F --> K[Traefik Ingress]
-    G --> K
+    K[Traefik Ingress, http://localhost:8080/elasticsearch or http://localhost:8080/kibana] --> F
+    K --> G
     I[OS-level Syslog] --> B
 ```
 

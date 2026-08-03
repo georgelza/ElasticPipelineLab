@@ -15,12 +15,7 @@ the `monitoring` and `data` namespaces.
 IngressRoute (ingress-traefik1)
         │  entryPoint: web (:80/8000)
         ├── /kibana          ──► kibana.elastic:5601        (no strip — Kibana owns /kibana)
-        ├── /elasticsearch   ──► elasticsearch.elastic:9200 (strip-elasticsearch middleware)
-        ├── /prometheus      ──► prometheus-service.monitoring:9090
-        ├── /grafana         ──► grafana.monitoring:3000
-        ├── /alertmanager    ──► alertmanager.monitoring:9093 (strip)
-        ├── /thanos          ──► thanos-query.monitoring:9090
-        └── /rustfs          ──► rustfs-service.data:9000   (strip)
+        └── /elasticsearch   ──► elasticsearch.elastic:9200 (strip-elasticsearch middleware)
 ```
 
 ## Manifests
