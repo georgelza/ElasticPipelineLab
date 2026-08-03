@@ -111,25 +111,18 @@ services:
 
   # Syslog-ng collector service (for OS-level log collection)
   syslog-ng:
-    image: linuxserver/syslog-ng
+    # Official syslog-ng image — includes the native Kafka module, so syslog-ng
+    # pushes directly to the Kafka broker (no file/Filebeat hop).
+    image: balabit/syslog-ng:latest
     container_name: syslog-ng
     hostname: syslog-ng
     ports:
       - "514:5514/udp"   # Standard Syslog UDP
       - "601:6601/tcp"   # Standard Syslog TCP
-    environment:
-      - PUID=1000        # Match your local user ID to avoid permission issues
-      - PGID=1000        # Match your local group ID
-      - TZ=Etc/UTC       # Set your desired timezone
     volumes:
-      # The LinuxServer image writes config + runtime (persist/pid/control files
-      # and s6 service logs) into /config. We mount a dedicated dir from ./data
-      # so these writes never pollute ./conf. The syslog-ng.conf is provisioned
-      # here from infrastructure/syslog-ng/syslog-ng.conf by `make run`
-      # (see Makefile).
-      - ./data/syslog-ng/config:/config
-      # Destination folder where logs will accumulate.
-      - ./data/syslog-ng/config/log:/var/log/syslog
+      # Canonical config provisioned by `make run` from
+      # infrastructure/syslog-ng/syslog-ng.conf (see Makefile).
+      - ./data/syslog-ng/config/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
     depends_on:
       # syslog-ng publishes directly to the Kafka broker (broker:29092), so it
       # only needs the broker up — not Kafka Connect.
@@ -161,7 +154,7 @@ services:
     user: root
     command: filebeat -e -c /etc/filebeat/filebeat.yml
     volumes:
-      - ./data/filebeat/filebeat.yml:/etc/filebeat/filebeat.yml
+      - ./data/filebeat/config/filebeat.yml:/etc/filebeat/filebeat.yml
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
     depends_on:

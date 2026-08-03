@@ -118,7 +118,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: elasticsearch-data
+            claimName: elasticsearch-data-1
         - name: config
           configMap:
             name: elasticsearch-config

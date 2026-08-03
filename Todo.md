@@ -52,8 +52,28 @@ Legend: `[ ]` pending · `[x]` done · `[~]` in progress
       `filebeat-logs`, brokers `broker:29092` (resolved via `hostAliases`
       `172.20.0.2` in `k8s/05.fluent-bit-daemonset.yaml`), JSON format, with
       `timestamp → @timestamp` rename filter.
-- [ ] (Operational) Verify end-to-end: Kafka topic → sink connector → ES index
+- [x] (Operational) Verify end-to-end: Kafka topic → sink connector → ES index
       `logs-filebeat` → Kibana data view shows documents.
+      **Verified** — the full pipeline is live:
+      - FluentBit on vcluster nodes tails `/var/log/containers/*.log` (CRI
+        parser in `k8s/parsers.conf`; the old `/var/lib/docker/containers` path
+        does not exist on k3s/containerd nodes and was removed) and publishes
+        k8s pod logs (e.g. `ingress-traefik1`) into `filebeat-logs`.
+      - Compose Filebeat publishes host logs into `filebeat-logs` (mount fixed
+        to `./data/filebeat/config/filebeat.yml`, service added to `make run`).
+      - Sink connector `elasticsearch-sink` (RUNNING) maps
+        `syslog-topic → logs-syslog`, `filebeat-logs → logs-filebeat`
+        (key `topic.to.external.resource.mapping` + `external.resource.usage:
+        index` — this connector version ignores the old `topic.index.map`).
+      - ~425k docs re-streamed into `logs-filebeat`; fresh syslog messages land
+        in `logs-syslog` with `@timestamp`; Kibana data views `logs-syslog*` /
+        `logs-filebeat*` show documents.
+- [x] Fix the syslog-ng container so it pushes **directly** to Kafka (no
+      file/Filebeat hop): the `linuxserver/syslog-ng` image has no Kafka module,
+      so `docker-compose.yml` now uses the official `balabit/syslog-ng` image
+      (native `kafka()` destination, `message('$(format-json ...)')` body).
+      The previous file-hop workaround (syslog-ng → JSON file → Filebeat) was
+      reverted.
 
 ## 6. Makefile
 
@@ -61,10 +81,16 @@ Legend: `[ ]` pending · `[x]` done · `[~]` in progress
 - [x] `make deployk8s` — apply `k8s/`, wait for rollouts, then configure ES
       (ILM/templates), then configure the Kafka ES sink connector
 - [x] `make sink` / `make elastic-setup` standalone re-runnable targets
+- [x] Sink/ES scripts leave a **persistent** ES port-forward running
+      (`/tmp/es-pf.pid`, nohup) so the connector can keep reaching ES at
+      `host.docker.internal:9200` after the script exits
+      (stop with `pkill -f "port-forward service/elasticsearch"`)
 
 ## 7. Remaining / next steps
 
-- [ ] End-to-end smoke test (start a syslog sender, verify `logs-syslog` index)
+- [x] End-to-end smoke test (start a syslog sender, verify `logs-syslog` index)
+      **Done** — UDP/TCP syslog via port 514/601 → `syslog-topic` →
+      `logs-syslog` verified.
 - [ ] Review `Deployment/DEPLOY_FILEBEAT*.md`, `DATASETS.md`, `ALERTS.md`,
       `DEPLOY_NG_FEED.md`, `FLUENTBIT_SELECTIVE_INGEST.md` for stale references
-      (StatefulSet / single-node / security-on) and align if needed
+      (StatefulSet / single-node / security-on / file-hop) and align if needed

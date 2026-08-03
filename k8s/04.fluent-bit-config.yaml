@@ -8,20 +8,30 @@ data:
     [SERVICE]
         Flush     1
         Log_Level info
+        parsers_file /fluent-bit/etc/parsers.conf
 
+    # Kubernetes pod logs (containerd CRI format). The vcluster worker nodes
+    # run k3s/containerd, so pod logs live in /var/log/containers (NOT in
+    # /var/lib/docker/containers which does not exist on these nodes).
+    [INPUT]
+        Name        tail
+        Path        /var/log/containers/*.log
+        Parser      cri-log
+        Tag         kube.*
+        Refresh_Interval 5
+        Skip_Long_Lines On
+
+    # Node system logs (k3s/apt/dpkg ...)
     [INPUT]
         Name        tail
         Path        /var/log/*.log
-        Refresh_Interval 5
-
-    [INPUT]
-        Name        tail
-        Path        /var/lib/docker/containers/*/*-json.log
+        Exclude_Path /var/log/containers/*
         Refresh_Interval 5
 
     [FILTER]
         Name modify
         Match *
+        Rename time @timestamp
         Rename timestamp @timestamp
         Add source k8s-fluent-bit
 
@@ -31,3 +41,15 @@ data:
         brokers broker:29092
         topics filebeat-logs
         format json
+        queue_full_retries 10
+
+  parsers.conf: |
+    # CRI parser for containerd/k3s container logs.
+    # Format: 2026-08-03T11:08:09.984228088Z stderr F <message>
+    [PARSER]
+        Name        cri-log
+        Format      regex
+        Regex       ^(?<time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+)Z (?<stream>stdout|stderr) [FP] (?<log>.*)$
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On

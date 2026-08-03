@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" width="100%" height="100%" style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="syslogGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#3730A3" />
+    </linearGradient>
+    <linearGradient id="fluentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+    <linearGradient id="kafkaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#0E7490" />
+    </linearGradient>
+    <linearGradient id="connectGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#6D28D9" />
+    </linearGradient>
+    <linearGradient id="esGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="kibanaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EC4899" />
+      <stop offset="100%" stop-color="#BE185D" />
+    </linearGradient>
+    <linearGradient id="traefikGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+
+    <!-- Drop Shadow -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.08" />
+    </filter>
+
+    <!-- Markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748B" />
+    </marker>
+    <marker id="arrow-traefik" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#D97706" />
+    </marker>
+  </defs>
+
+  <!-- Connectors -->
+  <!-- Pipeline 1: Syslog Flow -->
+  <path d="M 125 70 L 165 70" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+  <path d="M 285 70 L 325 70" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+
+  <!-- Pipeline 2: Container Logs Flow -->
+  <path d="M 125 180 L 165 180" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+  <path d="M 285 180 L 325 180" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+
+  <!-- Merge to Kafka Connect ES Sink -->
+  <path d="M 445 70 L 480 70 C 500 70, 500 125, 520 125 L 535 125" fill="none" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+  <path d="M 445 180 L 480 180 C 500 180, 500 125, 520 125 L 535 125" fill="none" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+
+  <!-- Kafka Connect to ES -->
+  <path d="M 665 125 L 725 125" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+
+  <!-- ES to Kibana -->
+  <path d="M 785 165 L 785 225" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arrow)" />
+
+  <!-- Traefik Ingress Routes -->
+  <path d="M 370 330 C 370 290, 785 290, 785 170" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow-traefik)" />
+  <path d="M 430 380 L 720 380" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow-traefik)" />
+
+  <!-- Nodes -->
+  <!-- 1. Syslog -->
+  <g filter="url(#shadow)">
+    <rect x="25" y="40" width="100" height="60" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" />
+    <text x="75" y="68" text-anchor="middle" font-size="13" font-weight="600" fill="#1E293B">Syslog</text>
+    <text x="75" y="85" text-anchor="middle" font-size="10" fill="#64748B">Source</text>
+  </g>
+
+  <!-- 2. syslog-ng -->
+  <g filter="url(#shadow)">
+    <rect x="165" y="40" width="120" height="60" rx="8" fill="url(#syslogGrad)" />
+    <text x="225" y="67" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">syslog-ng</text>
+    <text x="225" y="84" text-anchor="middle" font-size="10" fill="#E0E7FF">Docker Compose</text>
+  </g>
+
+  <!-- 3. Kafka (syslog-topic) -->
+  <g filter="url(#shadow)">
+    <rect x="325" y="40" width="120" height="60" rx="8" fill="url(#kafkaGrad)" />
+    <text x="385" y="67" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">Kafka</text>
+    <text x="385" y="84" text-anchor="middle" font-size="10" fill="#CFFAFE">syslog-topic</text>
+  </g>
+
+  <!-- 4. Container logs -->
+  <g filter="url(#shadow)">
+    <rect x="25" y="150" width="100" height="60" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" />
+    <text x="75" y="178" text-anchor="middle" font-size="12" font-weight="600" fill="#1E293B">Container logs</text>
+    <text x="75" y="195" text-anchor="middle" font-size="10" fill="#64748B">Source</text>
+  </g>
+
+  <!-- 5. FluentBit -->
+  <g filter="url(#shadow)">
+    <rect x="165" y="150" width="120" height="60" rx="8" fill="url(#fluentGrad)" />
+    <text x="225" y="177" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">FluentBit</text>
+    <text x="225" y="194" text-anchor="middle" font-size="10" fill="#E0F2FE">DaemonSet</text>
+  </g>
+
+  <!-- 6. Kafka (filebeat-logs) -->
+  <g filter="url(#shadow)">
+    <rect x="325" y="150" width="120" height="60" rx="8" fill="url(#kafkaGrad)" />
+    <text x="385" y="177" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">Kafka</text>
+    <text x="385" y="194" text-anchor="middle" font-size="10" fill="#CFFAFE">filebeat-logs</text>
+  </g>
+
+  <!-- 7. Kafka Connect ES Sink -->
+  <g filter="url(#shadow)">
+    <rect x="535" y="95" width="130" height="60" rx="8" fill="url(#connectGrad)" />
+    <text x="600" y="122" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">Kafka Connect</text>
+    <text x="600" y="139" text-anchor="middle" font-size="10" fill="#EDE9FE">ES Sink</text>
+  </g>
+
+  <!-- 8. Elasticsearch -->
+  <g filter="url(#shadow)">
+    <rect x="725" y="95" width="120" height="70" rx="8" fill="url(#esGrad)" />
+    <text x="785" y="127" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">Elasticsearch</text>
+    <text x="785" y="145" text-anchor="middle" font-size="10" fill="#D1FAE5">2 Nodes Cluster</text>
+  </g>
+
+  <!-- 9. Kibana -->
+  <g filter="url(#shadow)">
+    <rect x="725" y="225" width="120" height="60" rx="8" fill="url(#kibanaGrad)" />
+    <text x="785" y="253" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">Kibana</text>
+    <text x="785" y="270" text-anchor="middle" font-size="10" fill="#FCE7F3">Visualization</text>
+  </g>
+
+  <!-- 10. Traefik Ingress -->
+  <g filter="url(#shadow)">
+    <rect x="165" y="330" width="265" height="100" rx="8" fill="url(#traefikGrad)" />
+    <text x="297" y="358" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF">Traefik Ingress</text>
+    
+    <rect x="180" y="370" width="110" height="22" rx="4" fill="#FFFFFF" opacity="0.2" />
+    <text x="235" y="385" text-anchor="middle" font-size="10" font-weight="600" fill="#FFFFFF">/elasticsearch</text>
+    
+    <rect x="300" y="370" width="110" height="22" rx="4" fill="#FFFFFF" opacity="0.2" />
+    <text x="355" y="385" text-anchor="middle" font-size="10" font-weight="600" fill="#FFFFFF">/kibana</text>
+    
+    <text x="297" y="415" text-anchor="middle" font-size="10" fill="#FEF3C7">Reverse Proxy &amp; Load Balancer</text>
+  </g>
+
+  <!-- Legend -->
+  <text x="560" y="370" font-size="11" font-weight="600" fill="#D97706">Ingress Routing</text>
+  <line x1="500" y1="380" x2="550" y2="380" stroke="#F59E0B" stroke-width="2" stroke-dasharray="4,4" />
+</svg>

@@ -10,12 +10,8 @@
 
 Log-analytics pipeline for this repo:
 
-```
-Syslog ──► syslog-ng (Compose) ──► Kafka (syslog-topic) ──┐
-                                                          ├─► Kafka Connect ES Sink ──► Elasticsearch (2 nodes) ──► Kibana
-Container logs ──► FluentBit (DaemonSet) ──► Kafka (filebeat-logs) ──┘        │
-                                                                              └─► Traefik ingress (/kibana, /elasticsearch)
-```
+![Log Analytics Pipeline](diagrams/pipeline.svg)
+
 
 ## Architecture Overview
 
@@ -138,15 +134,20 @@ Kafka Connect runs as the **Docker Compose `connect` service**
 
 1. Ensures ES is reachable at `localhost:9200` via
    `kubectl port-forward service/elasticsearch 9200:9200 -n elastic`
-   (started automatically if not already running).
+   (started automatically if not already running). **The forward is left
+   running deliberately** (`nohup`, pid in `/tmp/es-pf.pid`) — the sink
+   connector needs it continuously, not just while the script runs. Stop with
+   `pkill -f "port-forward service/elasticsearch"`.
 2. Registers/updates the `elasticsearch-sink` connector (idempotent `PUT
-   /connectors/elasticsearch-sink/config`):
+   `/connectors/elasticsearch-sink/config` — note the body is the **raw config
+   map**, not the `{"name","config"}` wrapper used by `POST /connectors`):
 
    | Setting | Value |
    |---------|-------|
    | `connector.class` | `io.confluent.connect.elasticsearch.ElasticsearchSinkConnector` |
    | `topics` | `syslog-topic,filebeat-logs` |
-   | `topic.index.map` | `syslog-topic:logs-syslog, filebeat-logs:logs-filebeat` |
+   | `topic.to.external.resource.mapping` | `syslog-topic:logs-syslog, filebeat-logs:logs-filebeat` |
+   | `external.resource.usage` | `index` |
    | `connection.url` | `http://host.docker.internal:9200` |
    | `value.converter` | `org.apache.kafka.connect.json.JsonConverter`, `schemas.enable=false` |
    | `key.ignore` / `schema.ignore` | `true` |
@@ -154,15 +155,24 @@ Kafka Connect runs as the **Docker Compose `connect` service**
 
 3. Waits for the connector to reach `RUNNING` state.
 
+> **`topic.index.map` vs `topic.to.external.resource.mapping`:** this connector
+> version silently ignores the old `topic.index.map` key (it would write to
+> topic-named indices like `filebeat-logs`). Use
+> `topic.to.external.resource.mapping` **together with**
+> `external.resource.usage: index` — the config is rejected unless both are
+> set. The connector also validates that the mapped indices exist up-front, so
+> `make elastic-setup` (index template) should run before `make sink`.
+
 > **Connect → ES reachability:** ES runs inside the vcluster; the Compose
 > `connect` container reaches it through the host via `host.docker.internal`
-> pointing at the `kubectl port-forward` listener on the host's `localhost:9200`.
+> pointing at the (persistent) `kubectl port-forward` listener on the host's
+> `localhost:9200`.
 
 ## 7. Data Flow
 
 | Stream | Source → Kafka topic | ES index (sink) | Kibana data view |
 |--------|----------------------|-----------------|------------------|
-| Syslog | host/syslog-ng → `syslog-topic` | `logs-syslog` | `logs-syslog*` (time: `ISODATE`) |
+| Syslog | host/syslog-ng → `syslog-topic` | `logs-syslog` | `logs-syslog*` (time: `@timestamp`) |
 | Container logs | FluentBit DaemonSet → `filebeat-logs` | `logs-filebeat` | `logs-filebeat*` (time: `@timestamp`) |
 
 FluentBit resolves the Compose `broker` hostname via `hostAliases` →

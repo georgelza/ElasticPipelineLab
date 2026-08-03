@@ -1,16 +1,28 @@
 # Installation Guide: OS-level Syslog Collector
 
 > **Current deployment (updated):** syslog-ng now runs as a **Docker Compose
-> service** (`docker-compose.yml`, image `linuxserver/syslog-ng`), not a
-> Kubernetes DaemonSet. Its configuration is provisioned from the canonical
-> source `infrastructure/syslog-ng/syslog-ng.conf` into
+> service** (`docker-compose.yml`, image **`balabit/syslog-ng`** — the official
+> image with a **native Kafka module**), not a Kubernetes DaemonSet. Its
+> configuration is provisioned from the canonical source
+> `infrastructure/syslog-ng/syslog-ng.conf` into
 > `./data/syslog-ng/config/syslog-ng.conf` by `make run`. It publishes **JSON
-> payloads** (`$(format-json)`) to the `syslog-topic` Kafka topic on
-> **`broker:29092`** (the Kafka broker — **not** `connect:8083`, which is the
-> Kafka Connect REST API). The Kafka → Elasticsearch sink connector then
-> indexes `syslog-topic` into the `logs-syslog` ES index. The Kubernetes
-> DaemonSet/ConfigMap sections further down are kept for reference but are
-> **deprecated** for this repo.
+> payloads** (`$(format-json)` in a `message(...)` body) **directly** to the
+> `syslog-topic` Kafka topic on **`broker:29092`** (the Kafka broker — **not**
+> `connect:8083`, which is the Kafka Connect REST API). No file/Filebeat hop.
+> The Kafka → Elasticsearch sink connector then indexes `syslog-topic` into the
+> `logs-syslog` ES index. The Kubernetes DaemonSet/ConfigMap sections further
+> down are kept for reference but are **deprecated** for this repo.
+
+> **Why `balabit/syslog-ng`?** The `linuxserver/syslog-ng` image (Alpine) ships
+> without the `syslog-ng-mod-kafka` package, so a `kafka()` destination would
+> fail with *"No usable module found for kafka()"*. The official `balabit`
+> image includes `libkafka.so` (syslog-ng 4.12), enabling a direct
+> syslog-ng → Kafka push.
+
+> **Note on config syntax (syslog-ng 4.x):** option names are hyphenated
+> (`bootstrap-servers(...)`, `keep-timestamp(no)`, ...), and the Kafka message
+> body is set with **`message(...)`** — `value(...)` / `template(...)` are
+> rejected at parse time with `unexpected KW_VALUE/KW_TEMPLATE`.
 
 ## Prerequisites
 
@@ -45,59 +57,48 @@ mkdir -p /opt/syslog-collector/logs
 
 The canonical configuration lives at `infrastructure/syslog-ng/syslog-ng.conf`
 and is provisioned by `make run` into `./data/syslog-ng/config/syslog-ng.conf`
-(the LinuxServer image mounts that directory at `/config`). Equivalent
-standalone configuration:
+(the official balabit image mounts that file at `/etc/syslog-ng/syslog-ng.conf`).
+Equivalent standalone configuration:
 
 ```conf
-@version: 4.2
+@version: 4.0
+@include "scl.conf"
 
-# Global options
+# Global options — 4.x hyphenated names
 options {
-    time-stamp(follow_system_tz(no));
-    timestamp_format("%Y-%m-%dT%H:%M:%S.%NZ");
-    log_msg_size(65536);
-    use_dns(no);
-    use_fqdn(no);
+    keep-timestamp(no);
+    ts-format("iso");
+    frac-digits(3);
+    log-msg-size(65536);
+    use-dns(no);
+    use-fqdn(no);
 };
 
-# Syslog input sources
+# Syslog input sources (UDP 5514 / TCP 6601, exposed as 514/601 on the host)
 source s_syslog {
-    system();
     internal();
+    udp(0.0.0.0:5514);
+    tcp(0.0.0.0:6601);
 };
 
-# File input for specific OS log files
-source s_files {
-    file("/var/log/auth.log" flags(no-parse) program_override("auth"));
-    file("/var/log/syslog" flags(no-parse) program_override("syslog"));
-    file("/var/log/messages" flags(no-parse) program_override("messages"));
-    file("/var/log/kern.log" flags(no-parse) program_override("kernel"));
-    file("/var/log/boot.log" flags(no-parse) program_override("boot"));
-    file("/var/log/dmesg" flags(no-parse) program_override("dmesg"));
-};
-
-# Kafka output destination — bootstrap_servers points at the KAFKA BROKER
+# Kafka output destination — bootstrap-servers points at the KAFKA BROKER
 # (broker:29092). connect:8083 is Kafka Connect's REST API, NOT a broker.
 destination d_kafka {
     kafka(
-        bootstrap_servers("broker:29092")
+        bootstrap-servers("broker:29092")
         topic("syslog-topic")
         key("syslog")
-        # JSON payload so the ES sink JsonConverter can index it directly
-        value("$(format-json --scope rfc5424 --scope nv-pairs)\n")
-        config(compression.type("snappy"))
+        # JSON payload so the ES sink JsonConverter can index it directly;
+        # message() (not value()/template()) is the 4.x body option.
+        message('$(format-json --scope rfc5424 --scope nv-pairs --pair @timestamp="${ISODATE}")')
+        config(queue.buffering.max.messages("500000")
+               request.required.acks("1"))
     );
 };
 
-# Log path for Kafka
+# Log path: everything into Kafka
 log {
     source(s_syslog);
-    destination(d_kafka);
-};
-
-# Log path for file inputs
-log {
-    source(s_files);
     destination(d_kafka);
 };
 ```
@@ -109,23 +110,16 @@ In this repo the syslog-ng service is already defined in the root
 starts the stack). A standalone override for another host would look like:
 
 ```yaml
-version: '3.8'
-
 services:
   syslog-ng:
-    image: linuxserver/syslog-ng
+    image: balabit/syslog-ng:latest   # official image, native kafka() module
     container_name: syslog-ng
     hostname: syslog-ng
     ports:
       - "514:5514/udp"   # Standard Syslog UDP
       - "601:6601/tcp"   # Standard Syslog TCP
-    environment:
-      - PUID=1000        # Match your local user ID to avoid permission issues
-      - PGID=1000        # Match your local group ID
-      - TZ=Etc/UTC       # Set your desired timezone
     volumes:
-      - ./conf/syslog-ng-config:/config       # Location for your custom syslog-ng.conf
-      - ./data/syslog-ng/logs:/var/log/syslog # Destination folder where logs will accumulate
+      - ./data/syslog-ng/config/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
     depends_on:
       # syslog-ng publishes straight to the Kafka broker, so only broker is needed
       - broker

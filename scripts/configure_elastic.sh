@@ -50,15 +50,20 @@ wait_for() { # wait_for <label> <timeout_sec> <cmd...>
 }
 
 # ── 1. Elasticsearch reachable ───────────────────────────────────────────────
+# Reuses any already-running forward (e.g. one left by configure_es_sink.sh).
 info "1. Ensuring Elasticsearch is reachable at localhost:${ES_PORT} (kubectl port-forward)..."
 if ! curl -fsS "http://localhost:${ES_PORT}/" >/dev/null 2>&1; then
-    kubectl port-forward service/elasticsearch "${ES_PORT}:9200" -n "${ES_NAMESPACE}" &
-    PF_PID=$!
-    trap 'kill "${PF_PID:-}" 2>/dev/null || true' EXIT
-    if ! wait_for "ES" 60 curl -fsS "http://localhost:${ES_PORT}/" ; then
-        die "Elasticsearch not reachable on localhost:${ES_PORT} after 60s — is the vcluster up (make deployk8s)?"
+    if [ -f /tmp/es-pf.pid ] && kill -0 "$(cat /tmp/es-pf.pid)" 2>/dev/null; then
+        say "Reusing existing ES port-forward (pid $(cat /tmp/es-pf.pid))"
+    else
+        nohup kubectl port-forward service/elasticsearch "${ES_PORT}:9200" -n "${ES_NAMESPACE}" \
+            >/tmp/es-pf.log 2>&1 &
+        echo $! > /tmp/es-pf.pid
+        if ! wait_for "ES" 60 curl -fsS "http://localhost:${ES_PORT}/" ; then
+            die "Elasticsearch not reachable on localhost:${ES_PORT} after 60s — is the vcluster up (make deployk8s)?"
+        fi
+        say "Persistent ES port-forward started (pid $(cat /tmp/es-pf.pid))"
     fi
-    say "ES reachable via port-forward (pid ${PF_PID})"
 else
     say "ES already reachable on localhost:${ES_PORT} (reusing existing forward)"
 fi
@@ -150,6 +155,7 @@ EOF
     code=$(curl -sS -o /tmp/kibana-dv.json -w '%{http_code}' \
         -X POST "${KIBANA_API}/${id}" \
         -H 'Content-Type: application/json' \
+        -H 'kbn-xsrf: true' \
         -d "${body}" || true)
     case "${code}" in
         200) say "Data view '${title}' created (id ${id})" ;;
@@ -158,7 +164,7 @@ EOF
     esac
 }
 
-create_data_view "logs-syslog"   "logs-syslog*"   "ISODATE"
+create_data_view "logs-syslog"   "logs-syslog*"   "@timestamp"
 create_data_view "logs-filebeat" "logs-filebeat*" "@timestamp"
 
 info "Done — Elasticsearch ILM/templates + Kibana data views configured."

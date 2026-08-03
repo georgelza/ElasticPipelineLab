@@ -80,7 +80,7 @@ run:
 
 	docker compose -p elastic up -d \
 		broker schema-registry control-center connect \
-		syslog-ng rustfs \
+		syslog-ng filebeat rustfs \
 		--remove-orphans
 
 	sleep 5

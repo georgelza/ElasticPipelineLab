@@ -14,6 +14,10 @@
 #   Topics consumed : syslog-topic    -> index logs-syslog
 #                     filebeat-logs   -> index logs-filebeat
 #
+#   NOTE: this connector version expects the topic->index map under
+#   `topic.to.external.resource.mapping` (the old `topic.index.map` key is
+#   silently ignored).
+#
 #   Because Elasticsearch runs inside the vcluster (k8s) while Kafka Connect
 #   runs in Docker Compose, this script starts a `kubectl port-forward` for
 #   the ES service and points the connector at `host.docker.internal:9200`
@@ -50,16 +54,24 @@ wait_for() { # wait_for <label> <timeout_sec> <cmd...>
     return 0
 }
 
-# ── 1. ES reachable via port-forward (k8s -> localhost) ─────────────────────
+# ── 1. ES reachable via persistent port-forward (k8s -> localhost) ────────────
+# NOTE: the ES sink connector needs host.docker.internal:${ES_PF_PORT} reachable
+# CONTINUOUSLY, so the port-forward started here is deliberately left running
+# (nohup + pidfile) after this script exits. Stop it with:
+#   pkill -f "port-forward service/elasticsearch"   (or: kill "$(cat /tmp/es-pf.pid)")
 info "1. Ensuring Elasticsearch is reachable at localhost:${ES_PF_PORT} (kubectl port-forward)..."
 if ! curl -fsS "http://localhost:${ES_PF_PORT}/" >/dev/null 2>&1; then
-    kubectl port-forward service/elasticsearch "${ES_PF_PORT}:9200" -n "${ES_NAMESPACE}" &
-    PF_PID=$!
-    trap 'kill "${PF_PID:-}" 2>/dev/null || true' EXIT
-    if ! wait_for "ES" 60 curl -fsS "http://localhost:${ES_PF_PORT}/" ; then
-        die "Elasticsearch not reachable on localhost:${ES_PF_PORT} after 60s — is the vcluster up (make deployk8s)?"
+    if [ -f /tmp/es-pf.pid ] && kill -0 "$(cat /tmp/es-pf.pid)" 2>/dev/null; then
+        say "Reusing existing ES port-forward (pid $(cat /tmp/es-pf.pid))"
+    else
+        nohup kubectl port-forward service/elasticsearch "${ES_PF_PORT}:9200" -n "${ES_NAMESPACE}" \
+            >/tmp/es-pf.log 2>&1 &
+        echo $! > /tmp/es-pf.pid
+        if ! wait_for "ES" 60 curl -fsS "http://localhost:${ES_PF_PORT}/" ; then
+            die "Elasticsearch not reachable on localhost:${ES_PF_PORT} after 60s — is the vcluster up (make deployk8s)?"
+        fi
+        say "Persistent ES port-forward started (pid $(cat /tmp/es-pf.pid))"
     fi
-    say "ES reachable via port-forward (pid ${PF_PID})"
 else
     say "ES already reachable on localhost:${ES_PF_PORT} (reusing existing forward)"
 fi
@@ -73,26 +85,26 @@ say "Kafka Connect reachable"
 
 # ── 3. Register the ES sink connector (create-or-update) ─────────────────────
 info "3. Registering connector '${CONNECTOR}'..."
+# PUT /connectors/{name}/config expects the RAW config map as the body
+# (no "name"/"config" wrapper — that form belongs to POST /connectors).
 CONNECTOR_JSON=$(cat <<EOF
 {
-  "name": "${CONNECTOR}",
-  "config": {
-    "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
-    "tasks.max": "1",
-    "topics": "syslog-topic,filebeat-logs",
-    "topic.index.map": "syslog-topic:logs-syslog,filebeat-logs:logs-filebeat",
-    "connection.url": "http://host.docker.internal:${ES_PF_PORT}",
-    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-    "key.ignore": "true",
-    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter.schemas.enable": "false",
-    "schema.ignore": "true",
-    "index.write.method": "insert",
-    "behavior.on.malformed.documents": "skip",
-    "behavior.on.null.values": "ignore",
-    "flush.timeout.ms": "10000",
-    "retry.backoff.ms": "1000"
-  }
+  "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+  "tasks.max": "1",
+  "topics": "syslog-topic,filebeat-logs",
+  "topic.to.external.resource.mapping": "syslog-topic:logs-syslog,filebeat-logs:logs-filebeat",
+  "external.resource.usage": "index",
+  "connection.url": "http://host.docker.internal:${ES_PF_PORT}",
+  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+  "key.ignore": "true",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter.schemas.enable": "false",
+  "schema.ignore": "true",
+  "index.write.method": "insert",
+  "behavior.on.malformed.documents": "warn",
+  "behavior.on.null.values": "ignore",
+  "flush.timeout.ms": "10000",
+  "retry.backoff.ms": "1000"
 }
 EOF
 )
