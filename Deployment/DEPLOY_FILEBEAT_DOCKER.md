@@ -50,6 +50,7 @@ output.kafka:
 ```
 
 This configuration ensures that:
+
 - Logs are sent to the Kafka broker running at `broker:29092` 
 - Logs are published to the `filebeat-logs` topic
 - Partitioning is based on `log_type` (docker vs system)
@@ -61,28 +62,29 @@ This configuration ensures that:
 The Filebeat service definition in `docker-compose.yml` ensures proper container communication:
 
 ```yaml
-filebeat:
-  image: docker.elastic.co/beats/filebeat:8.14.0
-  container_name: filebeat
-  hostname: filebeat
-  user: root
-  command: filebeat -e -c /etc/filebeat/filebeat.yml
-  volumes:
-    - ./conf/filebeat.yml:/etc/filebeat/filebeat.yml
-    - /var/log:/var/log
-    - /var/lib/docker/containers:/var/lib/docker/containers
-  depends_on:
-    - broker
-  networks:
-    - elastic
-  healthcheck:
-    test: ["CMD-SHELL", "filebeat test config -e"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.0
+    container_name: filebeat
+    hostname: filebeat
+    user: root
+    command: filebeat -e -c /etc/filebeat/filebeat.yml
+    volumes:
+      - ./conf/filebeat/filebeat.yml:/etc/filebeat/filebeat.yml
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers
+    depends_on:
+      - broker
+    networks:
+      - elastic
+    healthcheck:
+      test: ["CMD-SHELL", "filebeat test config -e"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 ```
 
 The key aspects:
+
 - **User Context**: Runs as root to access Docker log directories with proper permissions
 - **Volumes**: Mount configuration file, system logs, and container log directory
 - **Dependencies**: Ensures broker is running before Filebeat starts

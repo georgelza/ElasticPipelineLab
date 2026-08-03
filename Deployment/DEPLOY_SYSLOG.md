@@ -94,24 +94,31 @@ Create a docker-compose override file at `/opt/syslog-collector/docker-compose.y
 version: '3.8'
 
 services:
-  syslog-collector:
-    image: syslog-ng/syslog-ng:latest
-    container_name: syslog-collector
-    hostname: syslog-collector
+  syslog-ng:
+    image: linuxserver/syslog-ng
+    container_name: syslog-ng
+    hostname: syslog-ng
     ports:
-      - "514:514/udp"
-      - "514:514/tcp"
+      - "514:5514/udp"   # Standard Syslog UDP
+      - "601:6601/tcp"   # Standard Syslog TCP
+    environment:
+      - PUID=1000        # Match your local user ID to avoid permission issues
+      - PGID=1000        # Match your local group ID
+      - TZ=Etc/UTC       # Set your desired timezone
     volumes:
-      - ./config:/etc/syslog-ng
-      - ./logs:/var/log/syslog-ng
-      - /var/log:/var/log:ro
+      - ./conf/syslog-ng-config:/config       # Location for your custom syslog-ng.conf
+      - ./data/syslog-ng/logs:/var/log/syslog # Destination folder where logs will accumulate
+    depends_on:
+      - connect
     networks:
       - elastic
 
 networks:
   elastic:
-    external:
-      name: elastic
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
 ```
 
 ### 4. Deploy the Service
