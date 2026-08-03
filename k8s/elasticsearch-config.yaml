@@ -9,15 +9,10 @@ data:
     node.name: "elasticsearch-master"
     network.host: 0.0.0.0
     discovery.type: single-node
-    # Security settings
-    xpack.security.enabled: true
-    xpack.security.transport.ssl.enabled: true
-    xpack.security.transport.ssl.verification_mode: certificate
-    xpack.security.transport.ssl.keystore.path: certs/elastic-certificates.p12
-    xpack.security.transport.ssl.truststore.path: certs/elastic-certificates.p12
-    xpack.security.http.ssl.enabled: true
-    xpack.security.http.ssl.keystore.path: certs/elastic-certificates.p12
-    xpack.security.http.ssl.truststore.path: certs/elastic-certificates.p12
+    # Security is disabled for this local/single-node homelab deployment.
+    # Re-enable with an appropriately mounted PKCS12 keystore before exposing
+    # this cluster beyond a trusted network.
+    xpack.security.enabled: false
     # Storage settings
     path.data: /usr/share/elasticsearch/data
     path.logs: /usr/share/elasticsearch/logs

@@ -12,6 +12,7 @@ This guide describes how to install and configure a syslog collector directly on
 ## Architecture Overview
 
 This deployment follows a direct-on-OS pattern where:
+
 1. The syslog collector runs as a Docker container on the host system
 2. It forwards logs to Kafka via the `connect` container configured in the Docker Compose environment
 3. The `connect:8083` endpoint allows Kafka Connect to process these logs
@@ -63,6 +64,7 @@ source s_files {
 };
 
 # Kafka output destination
+# Syslog below would be pointing to the per account Kafka Topic
 destination d_kafka {
     kafka(
         bootstrap_servers("connect:8083")

@@ -444,99 +444,14 @@ data:
     setup.ilm.enabled: false
 ```
 
-## 5. Syslog and Syslog-ng Setup
+## 5. Syslog Collection
 
-### 5.1 Syslog-NG DaemonSet for Local Collection
+### 5.1 Syslog-NG
 
-**File: `syslog-ng-daemonset.yaml`**
-
-```yaml
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: syslog-ng
-  namespace: elastic
-  labels:
-    app: syslog-ng
-spec:
-  selector:
-    matchLabels:
-      app: syslog-ng
-  template:
-    metadata:
-      labels:
-        app: syslog-ng
-    spec:
-      containers:
-      - name: syslog-ng
-        image: syslog-ng/syslog-ng:latest
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
-        ports:
-        - containerPort: 514
-          name: syslog
-        volumeMounts:
-        - name: syslog-ng-config
-          mountPath: /etc/syslog-ng/syslog-ng.conf
-          subPath: syslog-ng.conf
-        - name: var-log
-          mountPath: /var/log
-          readOnly: true
-        - name: logs
-          mountPath: /var/log/syslog-ng  
-      volumes:
-      - name: syslog-ng-config
-        configMap:
-          name: syslog-ng-config
-      - name: var-log
-        hostPath:
-          path: /var/log
-      - name: logs
-        hostPath:
-          path: /var/log/syslog-ng
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: syslog-ng-config
-  namespace: elastic
-data:
-  syslog-ng.conf: |
-    @version: 3.28
-    
-    # Global options
-    options {
-        time-stamp(follow_system_tz(no));
-        timestamp_format("%Y-%m-%dT%H:%M:%S.%NZ");
-        log_msg_size(65536);
-    };
-    
-    # Syslog input
-    source s_syslog {
-        system();
-        internal();
-    };
-    
-    # Kafka output
-    destination d_kafka {
-        kafka(
-            bootstrap_servers("connect:8083")
-            topic("syslog-topic")
-            key("syslog")
-        );
-    };
-    
-    # Log path
-    log {
-        source(s_syslog);
-        destination(d_kafka);
-    };
-```
+> **Note:** Syslog-ng now runs as a **Docker Compose service**, not a Kubernetes
+> DaemonSet. See the `syslog-ng` service in `docker-compose.yml` and
+> `conf/syslog-ng-config/syslog-ng.conf`. There is no `syslog-ng-daemonset.yaml`
+> in the `k8s/` stack.
 
 ### 5.2 Syslog Server with Kafka Forwarding
 
@@ -814,17 +729,18 @@ kubectl apply -f kibana-service.yaml
 kubectl apply -f filebeat-config.yaml
 kubectl apply -f filebeat-daemonset.yaml
 
-# 6. Deploy Syslog-NG
-kubectl apply -f syslog-ng-daemonset.yaml
-kubectl apply -f syslog-server.yaml
-
-# 7. Deploy Kafka Connect
+# 6. Deploy Kafka Connect
 kubectl apply -f kafka-connect-deployment.yaml
 kubectl apply -f elasticsearch-sink-connector.yaml
 
-# 8. Deploy RustFS
+# 7. Deploy RustFS
 kubectl apply -f rustfs-deployment.yaml
 kubectl apply -f rustfs-service.yaml
+```
+
+> **Note:** Syslog-ng is **not** deployed via Kubernetes. It runs as a Docker
+> Compose service (`docker-compose.yml`) and forwards host syslog to the
+> `syslog-topic` Kafka topic. See `DEPLOY_NG_FEED.md` for details.
 ```
 
 ### 8.2 Wait for Deployment Completion

@@ -12,6 +12,13 @@ spec:
       labels:
         app: fluent-bit
     spec:
+      # Resolve the Docker Compose Kafka broker hostname ("broker") from inside
+      # the cluster. The broker container runs on the Compose "elastic" bridge
+      # network; update this IP if the Compose stack is recreated.
+      hostAliases:
+      - ip: "172.20.0.2"
+        hostnames:
+        - "broker"
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule

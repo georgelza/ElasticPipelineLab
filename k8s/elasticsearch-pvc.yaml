@@ -4,6 +4,7 @@ metadata:
   name: elasticsearch-data
   namespace: elastic
 spec:
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:

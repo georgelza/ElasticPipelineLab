@@ -7,5 +7,3 @@ data:
   kibana.yml: |
     server.host: "0.0.0.0"
     elasticsearch.hosts: [ "http://elasticsearch:9200" ]
-    kibana.index: ".kibana"
-    logging.dest: "/dev/null"

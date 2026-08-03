@@ -46,11 +46,3 @@ spec:
       - name: elasticsearch-data
         persistentVolumeClaim:
           claimName: elasticsearch-data
-  volumeClaimTemplates:
-  - metadata:
-      name: elasticsearch-data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 20Gi
