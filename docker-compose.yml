@@ -131,7 +131,7 @@ services:
       # here from ./conf by `make run` (see Makefile).
       - ./data/syslog-ng/config:/config
       # Destination folder where logs will accumulate.
-      - ./data/syslog-ng/logs:/var/log/syslog
+      - ./data/syslog-ng/config/log:/var/log/syslog
     depends_on:
       - connect
 
@@ -163,7 +163,7 @@ services:
     user: root
     command: filebeat -e -c /etc/filebeat/filebeat.yml
     volumes:
-      - ./conf/filebeat/filebeat.yml:/etc/filebeat/filebeat.yml
+      - ./data/filebeat/filebeat.yml:/etc/filebeat/filebeat.yml
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
     depends_on:

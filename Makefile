@@ -63,7 +63,7 @@ run:
 
 	mkdir -p ./data/elasticsearch
 	mkdir -p ./data/rustfs
-	mkdir -p ./data/syslog-ng
+	mkdir -p ./data/syslog-ng/config/log
 	mkdir -p ./data/vc1
 
 	docker compose -p elastic up -d \
@@ -90,9 +90,8 @@ down:
 	@echo "🚀 Tear down full stack..."
 	docker compose -p elastic down  -v
 	
-	cd ./data; rm -rf elasticsearch
 	cd ./data; rm -rf rustfs
-	cd ./data; rm -rf syslog-ng
+	cd ./data/syslog-ng/config; rm -rf log
 	cd ./data; rm -rf vc1
 	
 ps:
