@@ -20,16 +20,16 @@ data:
     action.auto_create_index: ".monitoring-*,filebeat-*,logs-*"
     # ── S3 (RustFS) snapshot repository client ────────────────────────────────
     # The bundled repository-s3 module is used to offload log indices to the
-    # Docker Compose RustFS object store (bucket "my-log-bucket").
+    # Docker Compose RustFS object store. The endpoint uses
+    # host.docker.internal (the Docker Desktop host alias — resolves inside
+    # vcluster pods) + the published :9000 port, so NO compose bridge IPs are
+    # hardcoded anywhere; production k8s would use proper network integration.
     # Credentials come from the pre-seeded Elasticsearch keystore mounted into
     # each pod (see k8s/1.03.es-s3-credentials.yaml). NOTE: ES 8.13's
     # repository-s3 does NOT read AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env
     # vars — the keystore is the only credential source.
-    # "rustfs" is resolved to 172.20.0.3 (compose bridge) via hostAliases on
-    # each pod — the same published-port DNAT path the FluentBit DaemonSet
-    # uses to reach the Kafka broker.
     s3.client.default:
-      endpoint: "http://rustfs:9000"
+      endpoint: "http://host.docker.internal:9000"
       protocol: "http"
       path_style_access: true
       region: "af-south-1"
@@ -61,12 +61,6 @@ spec:
       # resolves to ./data/vc1/n1/elasticsearch on the host (persistence under ./data/).
       nodeSelector:
         kubernetes.io/hostname: worker-1
-      # Resolve the compose-network "rustfs" hostname to the RustFS container
-      # (S3 API published on :9000, reached via host published-port DNAT).
-      hostAliases:
-        - ip: "172.20.0.3"
-          hostnames:
-            - "rustfs"
       securityContext:
         fsGroup: 1000
         runAsUser: 1000
@@ -184,12 +178,6 @@ spec:
       # ./data/vc1/n2/elasticsearch-2 on the host (persistence under ./data/).
       nodeSelector:
         kubernetes.io/hostname: worker-2
-      # Resolve the compose-network "rustfs" hostname to the RustFS container
-      # (S3 API published on :9000, reached via host published-port DNAT).
-      hostAliases:
-        - ip: "172.20.0.3"
-          hostnames:
-            - "rustfs"
       securityContext:
         fsGroup: 1000
         runAsUser: 1000

@@ -129,9 +129,9 @@ services:
 networks:
   elastic:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    # No subnet pin / static IPs by design: the k8s side reaches the compose
+    # services via host.docker.internal + published ports, so the bridge
+    # subnet is free to auto-assign across compose recreations.
 ```
 
 ### 4. Deploy the Service

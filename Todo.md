@@ -49,9 +49,12 @@ Legend: `[ ]` pending · `[x]` done · `[~]` in progress
 
 - [x] Confirm whether FluentBit already publishes to Kafka
       **Yes** — `k8s/3.01.fluent-bit-config.yaml` `[OUTPUT] kafka` → topic
-      `logs-prod-nonpci-fluentbit`, brokers `broker:29092` (resolved via `hostAliases`
-      `172.20.0.2` in `k8s/3.02.fluent-bit-daemonset.yaml`), JSON format, with
-      `timestamp → @timestamp` rename filter.
+      `logs-prod-nonpci-fluentbit`, brokers `broker:29092` (resolved in-cluster
+      via the `broker` ExternalName Service, `k8s/1.04.external-services.yaml`,
+      which aliases `host.docker.internal:29092` — the Docker Desktop host
+      alias, published port; no hardcoded compose-bridge IPs, with
+      `rdkafka.broker.address.family v4` to bypass the unroutable IPv6
+      gateway), JSON format, with `timestamp → @timestamp` rename filter.
 - [x] (Operational) Verify end-to-end: Kafka topic → sink connector → ES index
       `logs-prod-nonpci-filebeat` → Kibana data view shows documents.
       **Verified** — the full pipeline is live:

@@ -1,0 +1,28 @@
+---
+# ── External Services (Docker Compose integration) ─────────────────────────────
+# vcluster pods reach the Docker Desktop Compose stack through the published
+# host ports. host.docker.internal is the Docker Desktop host alias — it
+# resolves inside vcluster pods (verified via busybox nslookup →
+# 192.168.65.254) and the compose services are published on the host
+# (broker :29092). No compose-bridge IPs are hardcoded anywhere; production k8s
+# would use proper network integration.
+#
+# `broker` aliases the Compose Kafka broker so pods can resolve the Kafka
+# ADVERTISED listener name (`broker:29092`, set in docker-compose.yml) through
+# in-cluster DNS. librdkafka follows the advertised listener after bootstrap;
+# without this alias FluentBit bootstraps fine but then loses the broker
+# ("Failed to resolve 'broker:29092'").
+apiVersion: v1
+kind: Service
+metadata:
+  name: broker
+  namespace: elastic
+  labels:
+    app: external-compose
+spec:
+  type: ExternalName
+  externalName: host.docker.internal
+  ports:
+    - name: kafka
+      port: 29092
+      targetPort: 29092

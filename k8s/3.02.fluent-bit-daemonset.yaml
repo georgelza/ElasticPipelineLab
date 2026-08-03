@@ -12,13 +12,10 @@ spec:
       labels:
         app: fluent-bit
     spec:
-      # Resolve the Docker Compose Kafka broker hostname ("broker") from inside
-      # the cluster. The broker container runs on the Compose "elastic" bridge
-      # network; update this IP if the Compose stack is recreated.
-      hostAliases:
-      - ip: "172.20.0.2"
-        hostnames:
-        - "broker"
+      # The Docker Compose Kafka broker is reached via host.docker.internal
+      # (Docker Desktop host alias — resolves inside vcluster pods) + the
+      # published :29092 port. No compose bridge IPs are hardcoded; production
+      # k8s would use proper network integration.
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule

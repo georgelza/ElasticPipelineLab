@@ -35,30 +35,6 @@ The deployment follows a modern log analytics architecture with the following co
 - **Kafka Connect**: Connector for Elasticsearch sink integration
 - **RustFS**: S3 tiered storage solution for long-term log retention
 
-## Troubleshooting
-
-### Docker Images Not Found During `make run`
-If you encounter errors like:
-```
-Error response from daemon: pull access denied for elastic/rustfs, repository does not exist or may require 'docker login': denied
-```
-
-This occurs because custom Docker images (`elastic/rustfs`, `elastic/kafka-connect-custom`) are not available in public registries. You must first build these images using:
-
-```bash
-make build
-```
-
-This will build all required Docker images including the custom Kafka Connect and RustFS containers needed for proper operation.
-
-### Deployment Order
-When using both Docker Compose (for Kafka infrastructure) and Kubernetes (for Elasticsearch/Dashboard):
-1. First run `make build` to build all required Docker images
-2. Then run `make run` to start the Docker Compose services
-3. Finally run `make k8s` to deploy Kubernetes components
-
-The Docker Compose infrastructure (Kafka, Connect, etc.) must be running before deploying Kubernetes components.
-
 
 ### Project Git
 
@@ -66,7 +42,48 @@ The Docker Compose infrastructure (Kafka, Connect, etc.) must be running before 
 
 ---
 
+## Architecture Diagrams
+
+### 1. High-level Architecture
+
+![Architecture Overview](diagrams/architecture.png)
+
+### 2. Docker Compose Infrastructure
+
+![Docker Compose Stack](diagrams/DockerCompose.svg)
+
+### 3. Kubernetes Elastic Stack Deployment
+
+![Kubernetes Log Analytics Stack](diagrams/K8s.svg)
+
+---
+
 ## Deployment Flow
+
+### Build Docker Images
+
+Before doing anything execute the following
+
+```bash
+# Pull all base images
+cd infrastructure
+make pull
+
+# Build our Kafka Connect image with Elasticsearch sink connector installed
+cd connect
+make build
+```
+
+This will build all required Docker images including the custom Kafka Connect and RustFS containers needed for proper operation.
+
+### Deployment Order
+
+cd back to the project root at this point.
+
+1. Then run `make run` to start the Docker Compose services
+2. Finally run `make k8s` to deploy Kubernetes components
+
+The Docker Compose infrastructure (Kafka, Connect, etc.) must be running before deploying Kubernetes components.
 
 The Below is the world of the possible..., we will be deploying most, except for the various Log4J input feeds and AI Integration consumption.
 
@@ -91,22 +108,6 @@ graph TD
 
 ---
 
-## Architecture Diagrams
-
-### 1. High-level Architecture
-
-![Architecture Overview](diagrams/architecture.png)
-
-### 2. Docker Compose Infrastructure
-
-![Docker Compose Stack](diagrams/DockerCompose.svg)
-
-### 3. Kubernetes Elastic Stack Deployment
-
-![Kubernetes Log Analytics Stack](diagrams/K8s.svg)
-
----
-
 ## Deployment Layers
 
 The stack is split into five layers. **Layer 0** runs in Docker Compose on the
@@ -116,12 +117,14 @@ updated) independently.
 
 ### Layer 0 — Docker Compose infrastructure (`make run`)
 
-Off-cluster supporting services, all on the `elastic` Docker bridge network
-(172.20.0.0/16). The vcluster pods reach them through **published-port DNAT**
-plus `hostAliases` (the same pattern FluentBit uses for the Kafka broker).
+Off-cluster supporting services, all on the `elastic` Docker bridge network.
+The vcluster pods reach them through **published ports on
+`host.docker.internal`** (the Docker Desktop host alias — resolves inside
+vcluster pods; no compose bridge IPs are hardcoded in the k8s manifests, a
+lab-only pattern — production k8s uses proper network integration).
 
 | Service | Container | Publish | Purpose |
-|---|---|---|---|
+|:--- |:--- |:--- |:--- |
 | `broker` | Kafka | `9092/9093` | `logs-prod-nonpci-*` topics (`logs-prod-nonpci-syslog`, `logs-prod-nonpci-filebeat`, `logs-prod-nonpci-fluentbit`, `logs-prod-nonpci-log4j`) |
 | `schema-registry` | Confluent Schema Registry | `8081` | Kafka schemas |
 | `control-center` | Confluent Control Center | `9021` | Kafka Connect UI |
@@ -133,11 +136,12 @@ plus `hostAliases` (the same pattern FluentBit uses for the Kafka broker).
 ### Layer 1 — Elasticsearch (`kubectl apply -f "k8s/1.*"`)
 
 | File | Contents |
-|---|---|
+|:--- |:--- |
 | `1.00.elastic-namespace.yaml` | `elastic` namespace |
 | `1.01.elastic-storage.yaml` | PVs/PVCs for `es-1` (worker-1) and `es-2` (worker-2) |
-| `1.02.elasticsearch.yaml` | ConfigMap (`elasticsearch.yml`, incl. `s3.client.default` endpoint/region/path-style), two `Deployment`s (es-1/es-2), Service + headless Service, `hostAliases` `rustfs → 172.20.0.3`, keystore volume |
+| `1.02.elasticsearch.yaml` | ConfigMap (`elasticsearch.yml`, incl. `s3.client.default` endpoint `http://host.docker.internal:9000` / region / path-style), two `Deployment`s (es-1/es-2), Service + headless Service, keystore volume |
 | `1.03.es-s3-credentials.yaml` | `es-s3-credentials` (plain reference copy) + `es-s3-keystore` (pre-seeded keystore with `s3.client.default.access_key`/`secret_key`) |
+| `1.04.external-services.yaml` | `broker` ExternalName Service → `host.docker.internal:29092` (lets pods resolve the Compose Kafka advertised listener name via in-cluster DNS — no hardcoded IPs) |
 
 > **Why a keystore?** ES 8.13's repository-s3 does **not** read
 > `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` env vars (its fallback chain is
@@ -147,21 +151,21 @@ plus `hostAliases` (the same pattern FluentBit uses for the Kafka broker).
 ### Layer 2 — Kibana (`kubectl apply -f "k8s/2.*"`)
 
 | File | Contents |
-|---|---|
+|:--- |:--- |
 | `2.01.kibana.yaml` | Kibana `Deployment` + Service (`basePath: /kibana`, routed by Traefik) |
 
 ### Layer 3 — FluentBit (`kubectl apply -f "k8s/3.*"`)
 
 | File | Contents |
-|---|---|
+|:--- |:--- |
 | `3.01.fluent-bit-config.yaml` | FluentBit config: CRI parser, tail of `/var/log/containers/*.log`, `[OUTPUT] kafka` → `logs-prod-nonpci-fluentbit`, `timestamp → @timestamp` |
-| `3.02.fluent-bit-daemonset.yaml` | DaemonSet with `hostAliases` `broker → 172.20.0.2` |
+| `3.02.fluent-bit-daemonset.yaml` | DaemonSet (broker reached via the `broker` ExternalName Service → `host.docker.internal:29092`, published port) |
 | `3.03.fluent-bit-service.yaml` | Metrics service |
 
 ### Layer 4 — Traefik (`kubectl apply -f "k8s/4.*"`)
 
 | File | Contents |
-|---|---|
+|:--- |:--- |
 | `4.01.traefik-crds.yaml` | Traefik CRDs (IngressRoute, Middleware, …) |
 | `4.02.traefik-rbac.yaml` | RBAC for the `ingress-traefik1` namespace |
 | `4.03.traefik-deploy.yaml` | Traefik Deployment/Service (`web:8000`, `websecure:8443`, `traefik:8080`, `metrics:9100`) |
@@ -369,7 +373,7 @@ Directory structure (inside each bucket; `<project name>` is the FIRST path
 element, date segments are zero-padded — `year=yyyy`, `month=mm`, `day=dd`):
 
 ```
-<S3 endpoint>/<bucket == aws account name>/<project name = log_analytics>/year=yyyy/month=mm/day=dd/<instanceId or Hostname>
+<S3 endpoint>/<project name = log_analytics>/<bucket == aws account name>/year=yyyy/month=mm/day=dd/<instanceId or Hostname>
 ```
 
 Configuration parameters:

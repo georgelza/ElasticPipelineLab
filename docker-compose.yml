@@ -130,9 +130,9 @@ services:
 
 
   # RustFS S3 storage service
-  # S3 API on :9000, web console on :9001. Both are published so the vcluster
-  # pods (which route to the compose bridge only via published-port DNAT) can
-  # reach the S3 API at rustfs:9000 / 172.20.0.3:9000.
+  # S3 API on :9000, web console on :9001. Both are published on the host so
+  # the vcluster pods can reach the S3 API at host.docker.internal:9000
+  # (Docker Desktop host alias — the lab mechanism for pod → compose access).
   rustfs:
     image: rustfs/rustfs:latest
     container_name: rustfs
@@ -174,3 +174,8 @@ services:
 networks:
   default:
     name: elastic
+    # No subnet pin / static IPs by design: the k8s side reaches the compose
+    # services via host.docker.internal + published ports (lab pattern — the
+    # Docker Desktop host alias; production k8s would use proper network
+    # integration instead). The bridge subnet is therefore free to auto-assign
+    # across compose recreations.

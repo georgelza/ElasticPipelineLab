@@ -18,6 +18,7 @@
 #       logs-prod-nonpci-fluentbit  — FluentBit (Kubernetes) container/pod logs
 #       logs-prod-nonpci-log4j      — Log4j appender logs (applications)
 #       logs-<account>-*            — future accounts/sources follow the same rule
+#
 #   (We currently simulate a single account: prod-nonpci.)
 #
 #   Usage: ./cre_topics.sh

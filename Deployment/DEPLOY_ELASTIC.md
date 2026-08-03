@@ -193,9 +193,14 @@ The sink connector consumes the whole `logs-prod-nonpci-*` family (`topics.regex
 any topic following the `logs-<account>-<source>` convention is indexed
 automatically.
 
-FluentBit resolves the Compose `broker` hostname via `hostAliases` →
-`172.20.0.2` (`k8s/3.02.fluent-bit-daemonset.yaml`) — update that IP if the
-Compose bridge network changes.
+FluentBit reaches the Compose Kafka `broker` through the `broker` ExternalName
+Service (`k8s/1.04.external-services.yaml`), which aliases
+`host.docker.internal:29092` (the Docker Desktop host alias — resolves inside
+vcluster pods; the broker's `29092` port is published on the host). The config
+sets `rdkafka.broker.address.family v4` because `host.docker.internal` also
+resolves to the Docker Desktop IPv6 gateway, which pods cannot route. No
+compose bridge IPs are hardcoded — the same pattern the ES S3 client uses for
+RustFS (`host.docker.internal:9000`, see `k8s/1.02.elasticsearch.yaml`).
 
 ## 8. Access
 

@@ -35,6 +35,12 @@ data:
         Rename timestamp @timestamp
         Add source k8s-fluent-bit
 
+    # Kafka broker reached through the `broker` ExternalName Service
+    # (k8s/1.04.external-services.yaml) which aliases host.docker.internal:29092
+    # — the Compose broker's advertised listener is also `broker:29092`, so the
+    # in-cluster DNS name keeps the connection alive after bootstrap.
+    # broker.address.family v4: host.docker.internal also resolves to the Docker
+    # Desktop IPv6 gateway (fdc4:...) which pods cannot route; force IPv4.
     [OUTPUT]
         Name kafka
         Match *
@@ -42,6 +48,7 @@ data:
         topics logs-prod-nonpci-fluentbit
         format json
         queue_full_retries 10
+        rdkafka.broker.address.family v4
 
   parsers.conf: |
     # CRI parser for containerd/k3s container logs.
