@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rustfs-data-pv
+  labels:
+    app: rustfs
+    volume: data
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/rustfs/data
+    type: DirectoryOrCreate
+  persistentVolumeReclaimPolicy: Retain
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-data-pvc
+  namespace: data
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  selector:
+    matchLabels:
+      app: rustfs
+      volume: data
+  volumeName: rustfs-data-pv
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rustfs-logs-pv
+  labels:
+    app: rustfs
+    volume: logs
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/rustfs/logs
+    type: DirectoryOrCreate
+  persistentVolumeReclaimPolicy: Retain
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-logs-pvc
+  namespace: data
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      app: rustfs
+      volume: logs
+  volumeName: rustfs-logs-pv

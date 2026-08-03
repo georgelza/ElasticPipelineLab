@@ -34,6 +34,30 @@ The deployment follows a modern log analytics architecture with the following co
 - **Kafka Connect**: Connector for Elasticsearch sink integration
 - **RustFS**: S3 tiered storage solution for long-term log retention
 
+## Troubleshooting
+
+### Docker Images Not Found During `make run`
+If you encounter errors like:
+```
+Error response from daemon: pull access denied for elastic/rustfs, repository does not exist or may require 'docker login': denied
+```
+
+This occurs because custom Docker images (`elastic/rustfs`, `elastic/kafka-connect-custom`) are not available in public registries. You must first build these images using:
+
+```bash
+make build
+```
+
+This will build all required Docker images including the custom Kafka Connect and RustFS containers needed for proper operation.
+
+### Deployment Order
+When using both Docker Compose (for Kafka infrastructure) and Kubernetes (for Elasticsearch/Dashboard):
+1. First run `make build` to build all required Docker images
+2. Then run `make run` to start the Docker Compose services
+3. Finally run `make k8s` to deploy Kubernetes components
+
+The Docker Compose infrastructure (Kafka, Connect, etc.) must be running before deploying Kubernetes components.
+
 
 ### Project Git
 

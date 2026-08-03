@@ -73,6 +73,7 @@ Create separate topics for each classification:
 - `syslog-topic-prod-unregulated` (Production Unregulated data)
 - `syslog-topic-nonprod-unregulated` (Non_Production Unregulated data)
 - `syslog-topic-network` (Network data)
+- `syslog-topic-filebeat-logs`
 - ...
 
 #### 2. Connector-based Bucket Assignment:

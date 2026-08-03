@@ -18,7 +18,7 @@ help:
 
 pull: confluent
 
-build: connect 
+build: connect rustfs
 
 
 ###### Build Section ######
@@ -31,3 +31,6 @@ confluent:
 	
 connect:
 	cd connect; make build
+
+rustfs:
+	cd rustfs; make build

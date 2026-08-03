@@ -67,7 +67,7 @@ run:
 		--remove-orphans
 
 	sleep 5
-	make createschemas
+	make createtopics
 
 	@echo "✅ ... Supporting Infrastructure Started successfully"
 

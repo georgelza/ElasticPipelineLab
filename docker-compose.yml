@@ -72,7 +72,7 @@ services:
       PORT: 9021
 
   connect:
-    image: ${REPO_NAME}/kafka-connect-custom:3.3
+    image: georgelza/kafka-connect-custom:3.3
     container_name: connect
     hostname: connect
     depends_on:
@@ -110,14 +110,19 @@ services:
 
   # Syslog-ng collector service (for OS-level log collection)
   syslog-ng:
-    image: syslog-ng/syslog-ng:latest
+    image: linuxserver/syslog-ng
     container_name: syslog-ng
     hostname: syslog-ng
     ports:
-      - "514:514/udp"
-      - "514:514/tcp"
+      - "514:5514/udp"   # Standard Syslog UDP
+      - "601:6601/tcp"   # Standard Syslog TCP
+    environment:
+      - PUID=1000        # Match your local user ID to avoid permission issues
+      - PGID=1000        # Match your local group ID
+      - TZ=Etc/UTC       # Set your desired timezone
     volumes:
-      - ./conf/syslog-ng-config:/etc/syslog-ng
+      - ./conf/syslog-ng-config:/config       # Location for your custom syslog-ng.conf
+      - ./logs:/var/log/syslog # Destination folder where logs will accumulate
     depends_on:
       - connect
     networks:
@@ -125,7 +130,7 @@ services:
 
    # RustFS S3 storage service 
   rustfs:
-    image: ${REPO_NAME}/rustfs:latest
+    image: rustfs/rustfs:latest
     container_name: rustfs
     hostname: rustfs
     ports:

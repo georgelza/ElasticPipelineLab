@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
       - name: syslog-ng
-        image: syslog-ng/syslog-ng:latest
+        image: linuxserver/syslog-ng
         resources:
           requests:
             memory: "128Mi"
@@ -409,7 +409,7 @@ This approach provides the most straightforward way to implement the syslog-ng s
 
 The syslog-ng daemonset in this repository provides a production-ready approach to collecting logs from Kubernetes nodes and forwarding them to the Kafka stack for processing by the Elastic stack. This implementation:
 
-1. **Uses a standard `syslog-ng/syslog-ng:latest` image** 
+1. **Uses a standard `${REPO_NAME}/syslog-ng:latest` image** 
 2. **Forwards logs to Kafka at `connect:8083`** which is exposed in your Docker Compose setup
 3. **Complies with all standard practices** for Kubernetes deployments
 4. **Uses the "elastic" namespace** as requested for all components

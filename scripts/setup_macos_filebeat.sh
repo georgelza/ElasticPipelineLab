@@ -19,7 +19,7 @@ filebeat.inputs:
 
 output.kafka:
   hosts: ["localhost:9092"]
-  topic: "filebeat-logs"
+  topic: "syslog-topic-filebeat-logs"
   compression: gzip
   max_message_bytes: 1000000
 
