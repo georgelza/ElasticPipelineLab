@@ -1,6 +1,16 @@
 # Installation Guide: OS-level Syslog Collector
 
-This guide describes how to install and configure a syslog collector directly on the OS that will forward logs to the Docker Compose Kafka stack.
+> **Current deployment (updated):** syslog-ng now runs as a **Docker Compose
+> service** (`docker-compose.yml`, image `linuxserver/syslog-ng`), not a
+> Kubernetes DaemonSet. Its configuration is provisioned from the canonical
+> source `infrastructure/syslog-ng/syslog-ng.conf` into
+> `./data/syslog-ng/config/syslog-ng.conf` by `make run`. It publishes **JSON
+> payloads** (`$(format-json)`) to the `syslog-topic` Kafka topic on
+> **`broker:29092`** (the Kafka broker — **not** `connect:8083`, which is the
+> Kafka Connect REST API). The Kafka → Elasticsearch sink connector then
+> indexes `syslog-topic` into the `logs-syslog` ES index. The Kubernetes
+> DaemonSet/ConfigMap sections further down are kept for reference but are
+> **deprecated** for this repo.
 
 ## Prerequisites
 
@@ -13,9 +23,9 @@ This guide describes how to install and configure a syslog collector directly on
 
 This deployment follows a direct-on-OS pattern where:
 
-1. The syslog collector runs as a Docker container on the host system
-2. It forwards logs to Kafka via the `connect` container configured in the Docker Compose environment
-3. The `connect:8083` endpoint allows Kafka Connect to process these logs
+1. The syslog collector (syslog-ng) runs as a Docker Compose service on the host system
+2. It forwards logs directly to the Kafka broker (`broker:29092`) — NOT via Kafka Connect
+3. Kafka Connect (`connect:8083`) only runs the **Elasticsearch sink connector** that consumes the topic and indexes into Elasticsearch
 
 ## Deployment Process
 
@@ -33,10 +43,13 @@ mkdir -p /opt/syslog-collector/logs
 
 ### 2. Create Syslog Collector Configuration
 
-Create the configuration file at `/opt/syslog-collector/config/syslog-ng.conf`:
+The canonical configuration lives at `infrastructure/syslog-ng/syslog-ng.conf`
+and is provisioned by `make run` into `./data/syslog-ng/config/syslog-ng.conf`
+(the LinuxServer image mounts that directory at `/config`). Equivalent
+standalone configuration:
 
 ```conf
-@version: 3.28
+@version: 4.2
 
 # Global options
 options {
@@ -63,13 +76,16 @@ source s_files {
     file("/var/log/dmesg" flags(no-parse) program_override("dmesg"));
 };
 
-# Kafka output destination
-# Syslog below would be pointing to the per account Kafka Topic
+# Kafka output destination — bootstrap_servers points at the KAFKA BROKER
+# (broker:29092). connect:8083 is Kafka Connect's REST API, NOT a broker.
 destination d_kafka {
     kafka(
-        bootstrap_servers("connect:8083")
+        bootstrap_servers("broker:29092")
         topic("syslog-topic")
         key("syslog")
+        # JSON payload so the ES sink JsonConverter can index it directly
+        value("$(format-json --scope rfc5424 --scope nv-pairs)\n")
+        config(compression.type("snappy"))
     );
 };
 
@@ -88,7 +104,9 @@ log {
 
 ### 3. Launch the Syslog Collector Docker Service
 
-Create a docker-compose override file at `/opt/syslog-collector/docker-compose.yml`:
+In this repo the syslog-ng service is already defined in the root
+`docker-compose.yml` — just run `make run` (which provisions the config and
+starts the stack). A standalone override for another host would look like:
 
 ```yaml
 version: '3.8'
@@ -109,7 +127,8 @@ services:
       - ./conf/syslog-ng-config:/config       # Location for your custom syslog-ng.conf
       - ./data/syslog-ng/logs:/var/log/syslog # Destination folder where logs will accumulate
     depends_on:
-      - connect
+      # syslog-ng publishes straight to the Kafka broker, so only broker is needed
+      - broker
     networks:
       - elastic
 
@@ -179,7 +198,7 @@ source s_custom_files {
 
 ### Troubleshooting
 
-#### Issue: Connection to `connect` failed
+#### Issue: Connection to Kafka (`broker:29092`) failed
 
 Ensure that:
 
@@ -188,9 +207,9 @@ Ensure that:
    docker compose ps
    ```
 
-2. The `connect` service is accessible:
+2. The `broker` service is accessible:
    ```bash
-   docker compose exec broker nc -z connect 8083
+   docker compose exec broker nc -z broker 29092
    ```
 
 #### Issue: Logs not reaching Kafka
@@ -233,10 +252,20 @@ This configuration will deliver events to the "syslog-topic" in Kafka, which can
 
 After deployment, you should see:
 
-1. Container named `syslog-collector` running
-2. Log entries showing successful connection to `connect:8083`
-3. Forwarded log entries appearing in Kafka topics
-4. Integration with existing Kafka Connect pipeline# Syslog Installation and Configuration
+1. Container named `syslog-ng` running
+2. Log entries showing successful connection to `broker:29092`
+3. Forwarded log entries appearing in the `syslog-topic` Kafka topic
+4. The `elasticsearch-sink` connector indexing `syslog-topic` into the `logs-syslog` ES index
+5. Documents visible in the `logs-syslog*` Kibana data view
+
+---
+
+# Syslog Installation and Configuration (DEPRECATED — K8s DaemonSet approach)
+
+> **Deprecated:** the following Kubernetes DaemonSet/ConfigMap based syslog
+> deployment is **not used** in this repo. syslog-ng runs as a Docker Compose
+> service (see above). This section is kept only for historical reference and
+> contains outdated `connect:8083` broker references.
 
 ## Overview
 

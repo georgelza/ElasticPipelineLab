@@ -125,12 +125,15 @@ services:
       # The LinuxServer image writes config + runtime (persist/pid/control files
       # and s6 service logs) into /config. We mount a dedicated dir from ./data
       # so these writes never pollute ./conf. The syslog-ng.conf is provisioned
-      # here from ./conf by `make run` (see Makefile).
+      # here from infrastructure/syslog-ng/syslog-ng.conf by `make run`
+      # (see Makefile).
       - ./data/syslog-ng/config:/config
       # Destination folder where logs will accumulate.
       - ./data/syslog-ng/config/log:/var/log/syslog
     depends_on:
-      - connect
+      # syslog-ng publishes directly to the Kafka broker (broker:29092), so it
+      # only needs the broker up — not Kafka Connect.
+      - broker
 
 
    # RustFS S3 storage service 
