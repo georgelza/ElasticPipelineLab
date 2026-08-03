@@ -1,0 +1,81 @@
+---
+# ── Elasticsearch PersistentVolume (node 1 → worker-1) ───────────────────────
+# Canonical PV/PVC for the Elastic stack.
+# Persistence sits under ./data/ on the host: on a vcluster worker node the
+# hostPath /data/elasticsearch maps to ./data/vc1/<node>/elasticsearch.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: elasticsearch-pv
+  labels:
+    app: elasticsearch
+    es-node: "1"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/elasticsearch
+    type: DirectoryOrCreate
+  persistentVolumeReclaimPolicy: Retain
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-data
+  namespace: elastic
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  selector:
+    matchLabels:
+      app: elasticsearch
+  volumeName: elasticsearch-pv
+
+---
+# ── Elasticsearch PersistentVolume (node 2 → worker-2) ───────────────────────
+# Second ES pod gets its own PVC on a distinct hostPath so the two cluster
+# nodes never share a data directory.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: elasticsearch-pv-2
+  labels:
+    app: elasticsearch
+    es-node: "2"
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/elasticsearch-2
+    type: DirectoryOrCreate
+  persistentVolumeReclaimPolicy: Retain
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-data-2
+  namespace: elastic
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  selector:
+    matchLabels:
+      app: elasticsearch
+      es-node: "2"
+  volumeName: elasticsearch-pv-2

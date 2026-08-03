@@ -5,6 +5,7 @@ See `vcluster.yml`
 
 ```bash
 # Create a vCluster in Docker (automatically connects)
+#sudo vcluster create my-vc1 --values vcluster.yml --add=false
 sudo vcluster create my-vc1 --values vcluster.yml
 
 # if Error

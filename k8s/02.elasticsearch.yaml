@@ -1,0 +1,265 @@
+---
+# ── Elasticsearch ConfigMap ───────────────────────────────────────────────────
+# Shared by both Elasticsearch pods. Node identity (node.name) is provided per
+# pod via env vars, so the two pods form a single multi-node cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: elastic
+data:
+  elasticsearch.yml: |
+    cluster.name: "k8s-logging"
+    network.host: 0.0.0.0
+    # Multi-node discovery: the headless service resolves to both pod IPs.
+    discovery.seed_hosts: ["elasticsearch-headless"]
+    cluster.initial_master_nodes: ["es-1", "es-2"]
+    xpack.security.enabled: false
+    xpack.monitoring.collection.enabled: true
+    # Allow Filebeat index template creation
+    action.auto_create_index: ".monitoring-*,filebeat-*,logs-*"
+
+---
+# ── Elasticsearch Deployment — node 1 (es-1 → worker-1) ───────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-1
+  namespace: elastic
+  labels:
+    app: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: elasticsearch-1
+  strategy:
+    type: Recreate          # Recreate because of ReadWriteOnce PVC
+  template:
+    metadata:
+      labels:
+        app: elasticsearch            # shared label: picked up by the Service/Ingress
+        deployment: elasticsearch-1   # unique label: owned by this Deployment
+    spec:
+      # Pin to a vcluster worker node so the hostPath /data/elasticsearch
+      # resolves to ./data/vc1/n1/elasticsearch on the host (persistence under ./data/).
+      nodeSelector:
+        kubernetes.io/hostname: worker-1
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      initContainers:
+        - name: sysctl
+          image: busybox:1.36
+          # Best-effort: required on bare-metal/k3s hosts where the default
+          # vm.max_map_count (65530) is too low. Inside vcluster the write is
+          # denied (already 262144 in the node VM), so failures are tolerated.
+          command: ["sh", "-c", "sysctl -w vm.max_map_count=262144 || echo 'sysctl skipped (vm.max_map_count likely already set)'"]
+          securityContext:
+            privileged: true
+        # hostPath directories are created by the kubelet as root; hand the
+        # data dir over to the elasticsearch uid (1000) before ES starts.
+        - name: fix-data-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 1000:1000 /usr/share/elasticsearch/data
+              chmod 755 /usr/share/elasticsearch
+              chmod -R 750 /usr/share/elasticsearch/data
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          env:
+            - name: node.name
+              value: "es-1"
+            - name: ES_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?local=true
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health?local=true
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 5
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+            - name: config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: elasticsearch-data
+        - name: config
+          configMap:
+            name: elasticsearch-config
+
+---
+# ── Elasticsearch Deployment — node 2 (es-2 → worker-2) ───────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-2
+  namespace: elastic
+  labels:
+    app: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: elasticsearch-2
+  strategy:
+    type: Recreate          # Recreate because of ReadWriteOnce PVC
+  template:
+    metadata:
+      labels:
+        app: elasticsearch            # shared label: picked up by the Service/Ingress
+        deployment: elasticsearch-2   # unique label: owned by this Deployment
+    spec:
+      # Second PVC lives on worker-2: hostPath /data/elasticsearch-2 resolves to
+      # ./data/vc1/n2/elasticsearch-2 on the host (persistence under ./data/).
+      nodeSelector:
+        kubernetes.io/hostname: worker-2
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      initContainers:
+        - name: sysctl
+          image: busybox:1.36
+          command: ["sh", "-c", "sysctl -w vm.max_map_count=262144 || echo 'sysctl skipped (vm.max_map_count likely already set)'"]
+          securityContext:
+            privileged: true
+        - name: fix-data-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 1000:1000 /usr/share/elasticsearch/data
+              chmod 755 /usr/share/elasticsearch
+              chmod -R 750 /usr/share/elasticsearch/data
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          env:
+            - name: node.name
+              value: "es-2"
+            - name: ES_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+          ports:
+            - containerPort: 9200
+              name: http
+            - containerPort: 9300
+              name: transport
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?local=true
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /_cluster/health?local=true
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 5
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+            - name: config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: elasticsearch-data-2
+        - name: config
+          configMap:
+            name: elasticsearch-config
+
+---
+# ── Elasticsearch Service (load balancer in front of both nodes) ──────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: elastic
+  labels:
+    app: elasticsearch
+spec:
+  type: ClusterIP
+  selector:
+    app: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+    - name: transport
+      port: 9300
+      targetPort: 9300
+
+---
+# ── Elasticsearch Headless Service (used for node discovery) ─────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-headless
+  namespace: elastic
+  labels:
+    app: elasticsearch
+spec:
+  clusterIP: None
+  selector:
+    app: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+    - name: transport
+      port: 9300
+      targetPort: 9300

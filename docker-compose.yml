@@ -15,6 +15,7 @@ services:
     image: confluentinc/cp-kafka:7.9.6
     container_name: broker
     hostname: broker
+
     ports:
       - "9092:9092"
       - "9101:9101"

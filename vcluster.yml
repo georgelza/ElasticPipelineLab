@@ -1,43 +1,33 @@
 # https://github.com/loft-sh/vind/blob/main/docs/configuration.md
 
-# Kubernetes version (optional, defaults to v1.35.0)
 controlPlane:
-  distro:
-    k8s:
-      version: "v1.35.0"
-  backingStore:
+  # Configure the backing store for vCluster's data
+  backingStore: # Enterprise feature - requires license
     etcd:
-      embedded:
-        enabled: true
+      embedded: 
+        enabled: true  # Run etcd inside the vCluster pod
+
 experimental:
   docker:
-    # Environment variables
-    env:
-      - "CLUSTER_NAME=my-vc1"
-      - "ENVIRONMENT=development"
     nodes:
     - name: "worker-1"
       volumes:
-        - "./data/vc1:/data"
+        - "./data/vc1/n1:/data"
       env:
         - "NODE_ROLE=worker"
-        - "NODE_LABEL=worker"
     - name: "worker-2"
       volumes:
-        - "./data/vc1:/data"
+        - "./data/vc1/n2:/data"
       env:
         - "NODE_ROLE=worker"
-        - "NODE_LABEL=worker"
     - name: "worker-3"
       volumes:
-        - "./data/vc1:/data"
+        - "./data/vc1/n3:/data"
       env:
         - "NODE_ROLE=worker"
-        - "NODE_LABEL=worker"
-
 
 # Create the cluster with: (using sudo allows for load balancer services)
-# sudo vcluster create my-vc1 -f vcluster.yaml
+# sudo vcluster create my-vc1 -f vcluster.yml
 
 # Tear down the cluster with:
 # vcluster delete my-vc1

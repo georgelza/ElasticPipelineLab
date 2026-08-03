@@ -1,0 +1,92 @@
+---
+# ── Kibana ConfigMap ──────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-config
+  namespace: elastic
+data:
+  kibana.yml: |
+    server.name: kibana
+    server.host: "0.0.0.0"
+    # Serve Kibana under /kibana so Traefik can route by path prefix
+    server.basePath: "/kibana"
+    server.rewriteBasePath: true
+    elasticsearch.hosts: ["http://elasticsearch.elastic.svc.cluster.local:9200"]
+    monitoring.ui.container.elasticsearch.enabled: true
+    # Increase payload limit for large dashboards
+    server.maxPayload: 1048576
+
+---
+# ── Kibana Deployment ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: elastic
+  labels:
+    app: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.13.4
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          ports:
+            - containerPort: 5601
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /kibana/api/status
+              port: 5601
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /kibana/api/status
+              port: 5601
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 5
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+      volumes:
+        - name: config
+          configMap:
+            name: kibana-config
+
+---
+# ── Kibana Service ────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: elastic
+  labels:
+    app: kibana
+spec:
+  type: ClusterIP
+  selector:
+    app: kibana
+  ports:
+    - name: http
+      port: 5601
+      targetPort: 5601

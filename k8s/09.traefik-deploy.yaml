@@ -1,0 +1,169 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Traefik Ingress for monitoring stack
+# Namespace: ingress-traefik1
+#
+# This deploys the Traefik Deployment and Service.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik1
+  namespace: ingress-traefik1
+  labels:
+    app.kubernetes.io/instance: traefik1-ingress-traefik1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    helm.sh/chart: traefik-39.0.2
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: traefik1-ingress-traefik1
+      app.kubernetes.io/name: traefik
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "9100"
+        prometheus.io/scrape: "true"
+      labels:
+        app.kubernetes.io/instance: traefik1-ingress-traefik1
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: traefik
+        helm.sh/chart: traefik-39.0.2
+    spec:
+      automountServiceAccountToken: true
+      serviceAccount: traefik1
+      serviceAccountName: traefik1
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: traefik1
+          image: docker.io/traefik:v3.6.8
+          imagePullPolicy: IfNotPresent
+          args:
+            # ── Entrypoints ──────────────────────────────────────────────────
+            - --entryPoints.metrics.address=:9100/tcp
+            - --entryPoints.traefik.address=:8080/tcp
+            - --entryPoints.web.address=:8000/tcp
+            - --entryPoints.websecure.address=:8443/tcp
+            - --entryPoints.websecure.http.tls=true
+            # RustFS console served at root on dedicated port
+            - --entryPoints.rustfs-console.address=:9001/tcp
+            # ── API & Metrics ────────────────────────────────────────────────
+            - --api.dashboard=true
+            - --ping=true
+            - --metrics.prometheus=true
+            - --metrics.prometheus.entrypoint=metrics
+            # ── Providers ───────────────────────────────────────────────────
+            - --providers.kubernetescrd
+            - --providers.kubernetescrd.allowEmptyServices=true
+            - --providers.kubernetescrd.allowCrossNamespace=true
+            - --providers.kubernetesingress
+            - --providers.kubernetesingress.allowEmptyServices=true
+            - --providers.kubernetesingress.ingressendpoint.publishedservice=ingress-traefik1/traefik1
+            # ── Logging ─────────────────────────────────────────────────────
+            - --log.level=INFO
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: USER
+              value: traefik
+          ports:
+            - containerPort: 9100
+              name: metrics
+              protocol: TCP
+            - containerPort: 8080
+              name: traefik
+              protocol: TCP
+            - containerPort: 8000
+              name: web
+              protocol: TCP
+            - containerPort: 8443
+              name: websecure
+              protocol: TCP
+            - containerPort: 9001
+              name: rustfs-console
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ping
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          readinessProbe:
+            failureThreshold: 1
+            httpGet:
+              path: /ping
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - mountPath: /data
+              name: data
+            - mountPath: /tmp
+              name: tmp
+      volumes:
+        - emptyDir: {}
+          name: data
+        - emptyDir: {}
+          name: tmp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik1
+  namespace: ingress-traefik1
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: traefik1-ingress-traefik1
+    app.kubernetes.io/name: traefik
+  ports:
+    - name: web
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+    - name: websecure
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+    - name: rustfs-console
+      port: 9001
+      targetPort: 9001
+      protocol: TCP

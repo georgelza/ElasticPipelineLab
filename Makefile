@@ -61,7 +61,6 @@ k8s:
 run:
 	@echo "🚀 Precreating required volumes..."
 
-	mkdir -p ./data/elasticsearch
 	mkdir -p ./data/rustfs
 	mkdir -p ./data/syslog-ng/config/log
 	mkdir -p ./data/vc1
