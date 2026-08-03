@@ -16,9 +16,9 @@ help:
 .PHONY: help
 
 
-pull: confluent
+pull: confluent misc
 
-build: connect rustfs
+build: connect
 
 
 ###### Build Section ######
@@ -28,9 +28,11 @@ confluent:
 	docker pull confluentinc/cp-schema-registry:7.9.6
 	docker pull confluentinc/cp-enterprise-control-center:7.9.6
 	docker pull confluentinc/cp-kcat:7.9.6
-	
+
+misc:
+	docker pull rustfs/rustfs:latest
+	docker pull balabit/syslog-ng:latest
+	docker pull docker.elastic.co/beats/filebeat:8.14.0
+		
 connect:
 	cd connect; make build
-
-rustfs:
-	cd rustfs; make build

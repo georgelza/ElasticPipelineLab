@@ -84,7 +84,8 @@ Legend: `[ ]` pending · `[x]` done · `[~]` in progress
 
 - [x] `make run` provisions `syslog-ng.conf` and starts the Compose stack
 - [x] `make deployk8s` — apply `k8s/`, wait for rollouts, then configure ES
-      (ILM/templates), then configure the Kafka ES sink connector
+      (ILM/templates), then configure the Kafka ES sink connector, then the
+      RustFS S3 snapshot repositories + SLM policy (`make s3-snapshots`)
 - [x] `make sink` / `make elastic-setup` standalone re-runnable targets
 - [x] Sink/ES scripts leave a **persistent** ES port-forward running
       (`/tmp/es-pf.pid`, nohup) so the connector can keep reaching ES at

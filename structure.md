@@ -11,22 +11,25 @@ Short layout of all the artefacts that make up our project/article.
 │       ├── TheEnd.jpg
 │       └── TechCentralFeb2020-george-leonard.jpg
 |
-├── conf/
-│   ├── filebeat.yml                    # Filebeat configuration
-│   └── syslog-ng.conf                  # Syslog-ng configuration
-|
 ├── data/
-│   ├── elasticsearch                   # Elasticsearch persistent data
-│   └── rustfs                          # RustFS persistent data
+│   ├── filebeat/config/                # Filebeat Configuration File (filebeat.yml)
+│   ├── rustfs/                         # RustFS persistent data (8 classification buckets)
+│   ├── syslog-ng/config/               # Provisioned syslog-ng config (syslog-ng.conf)
+│   └── vc1/                            # vcluster node data (n1/n2/n3)
 |
 ├── Deployment/
+│   ├── diagrams/
+│   │   └── pipeline.svg
+│   ├── ALERTS.md                       # Alerting / monitoring guide
 │   ├── BUILD.md                        # Build documentation
+│   ├── DATASETS.md                     # Datasets: 8 buckets + path convention + SLM policy
 │   ├── DEPLOY_SYSLOG.md                # Syslog deployment guide
 │   ├── FLUENTBIT_SELECTIVE_INGEST.md   # FluentBit filtering guide
 │   ├── DEPLOY_FILEBEAT.md              # Filebeat deployment guide
 │   ├── DEPLOY_ELASTIC.md               # Elastic Stack deployment guide
 │   ├── DEPLOY_FILEBEAT_DOCKER.md       # Filebeat Docker Compose deployment guide
-│   └── DEPLOY_NG_FEED.md               # Syslog-ng deployment guide
+│   ├── DEPLOY_NG_FEED.md               # Syslog-ng deployment guide
+│   └── TRAEFIK.md                      # Traefik ingress layer guide
 |
 ├── diagrams/
 │   ├── architecture.png                # Architecture diagram
@@ -38,28 +41,34 @@ Short layout of all the artefacts that make up our project/article.
 │   ├── connect/
 │   │   ├── Dockerfile                  # Dockerfile for infrastructure
 │   │   └── Makefile                    # Infrastructure deployment automation
+│   ├── syslog-ng/
+│   │   └── syslog-ng.conf              # Canonical syslog-ng config (Kafka JSON output)
 |   |
 │   ├── .env                            # Infrastructure environment variables
 │   ├── Makefile                        # Infrastructure deployment automation / Download base container images
 │   └── README.md                       # Infrastructure documentation
 |
 ├── k8s/
-│   ├── elastic-namespace.yaml
-│   ├── elasticsearch-config.yaml
-│   ├── elasticsearch-pv.yaml
-│   ├── elasticsearch-pvc.yaml
-│   ├── elasticsearch-statefulset.yaml
-│   ├── elasticsearch-service.yaml
-│   ├── elasticsearch-headless-service.yaml
-│   ├── fluent-bit-config.yaml
-│   ├── fluent-bit-daemonset.yaml
-│   ├── fluent-bit-service.yaml
-│   ├── kibana-config.yaml
-│   ├── kibana-deployment.yaml
-│   ├── kibana-service.yaml
+│   ├── 1.00.elastic-namespace.yaml     # elastic namespace
+│   ├── 1.01.elastic-storage.yaml       # PVs/PVCs for both ES nodes
+│   ├── 1.02.elasticsearch.yaml         # ES ConfigMap (s3 endpoint), 2 Deployments, Services, keystore mount
+│   ├── 1.03.es-s3-credentials.yaml     # S3 credentials secret + pre-seeded ES keystore
+│   ├── 1.04.external-services.yaml     # broker ExternalName Service → host.docker.internal:29092
+│   ├── 2.01.kibana.yaml                # Kibana Deployment + Service
+│   ├── 3.01.fluent-bit-config.yaml     # FluentBit ConfigMap (Kafka output → logs-prod-nonpci-fluentbit)
+│   ├── 3.02.fluent-bit-daemonset.yaml  # FluentBit DaemonSet (all nodes)
+│   ├── 3.03.fluent-bit-service.yaml    # FluentBit metrics service
+│   ├── 4.01.traefik-crds.yaml          # Traefik CRDs (IngressRoute etc.)
+│   ├── 4.02.traefik-rbac.yaml          # Traefik RBAC
+│   ├── 4.03.traefik-deploy.yaml        # Traefik Deployment + Service
+│   ├── 4.04.traefik-ingressroutes.yaml # IngressRoutes + middlewares
 │   └── README.md                       # Kubernetes deployment instructions
 |
 ├── scripts/
+│   ├── configure_elastic.sh            # ES ILM policy + index templates + Kibana data views
+│   ├── configure_es_sink.sh            # Kafka Connect ES sink connector (topics.regex)
+│   ├── configure_s3_snapshots.sh       # 8 S3 snapshot repos + SLM policy
+│   ├── cre_topics.sh                   # Create logs-prod-nonpci-* Kafka topics
 │   ├── setup_macos_syslog.sh           # macOS Syslog setup script
 │   └── setup_macos_filebeat.sh         # macOS Filebeat setup script
 |
@@ -70,5 +79,6 @@ Short layout of all the artefacts that make up our project/article.
 ├── opencode.json                       # Opencode configuration
 ├── README.md                           # Main README with complete deployment instructions
 ├── structure.md                        # This file
+├── Todo.md                             # Deployment tracking list
 └── vcluster.yml                        # vCluster configuration for multi-node Kubernetes
 ```
