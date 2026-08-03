@@ -18,16 +18,14 @@ Log-analytics pipeline for this repo:
 ```mermaid
 graph TD
     A[Syslog Sources] --> B[Syslog-NG - Docker Compose]
-    H[FluentBit DaemonSet] --> D[Kafka - Docker Compose]
-    C[Filebeat - Docker Compose] --> D
     B -->|logs-prod-nonpci-syslog| D
-    C -->|logs-prod-nonpci-filebeat| D
-    H -->|logs-prod-nonpci-fluentbit| D
+    C[Filebeat - Docker Compose] -->|logs-prod-nonpci-filebeat| D
+    H[FluentBit DaemonSet] -->|logs-prod-nonpci-fluentbit| D[Kafka - Docker Compose]
     D -->|logs-prod-nonpci-.* wildcard| E[Kafka Connect ES Sink - Compose]
     E --> F[Elasticsearch Service backed by 2x Deployments on vcluster]
-    F --> G[Kibana UI]
-    K[Traefik Ingress, http://localhost:8080/elasticsearch or http://localhost:8080/kibana] --> F
-    K --> G
+    G[Kibana UI] --> F
+    K[Traefik Ingress, http://localhost:8080/*] -->|/elasticsearch| F
+    K -->|/kibana| G
     I[OS-level Syslog] --> B
 ```
 
