@@ -9,13 +9,13 @@ Compose service** — there is no Kubernetes DaemonSet/manifest for it.
 ## Architecture
 
 ```
-OS syslog (port 514) -> syslog-ng (Docker Compose) -> Kafka (syslog-topic) -> Kafka Connect -> Elasticsearch -> Kibana
+OS syslog (port 514) -> syslog-ng (Docker Compose) -> Kafka (logs-prod-nonpci-syslog) -> Kafka Connect -> Elasticsearch -> Kibana
 ```
 
 ## Prerequisites
 
 - Docker Compose stack from the repo root (Kafka broker + Kafka Connect)
-- `syslog-topic` Kafka topic created (see `scripts/cre_topics.sh`)
+- `logs-prod-nonpci-syslog` Kafka topic created (see `scripts/cre_topics.sh`)
 
 ## Deployment
 
@@ -78,7 +78,7 @@ source s_syslog {
 destination d_kafka {
     kafka(
         bootstrap_servers("connect:8083")
-        topic("syslog-topic")
+        topic("logs-prod-nonpci-syslog")
         key("syslog")
     );
 };
@@ -198,7 +198,7 @@ docker compose -p elastic logs -f syslog-ng
 
 # Verify forwarding to Kafka topic
 docker compose -p elastic exec broker kafka-topics \
-    --bootstrap-server localhost:9092 --describe --topic syslog-topic
+    --bootstrap-server localhost:9092 --describe --topic logs-prod-nonpci-syslog
 ```
 
 ## Security Considerations

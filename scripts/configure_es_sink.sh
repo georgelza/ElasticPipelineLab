@@ -11,12 +11,19 @@
 #   Registers (or updates) the `elasticsearch-sink` connector on the Docker
 #   Compose Kafka Connect cluster (REST API published on localhost:8083).
 #
-#   Topics consumed : syslog-topic    -> index logs-syslog
-#                     filebeat-logs   -> index logs-filebeat
+#   Topics consumed : logs-prod-nonpci-syslog     -> index logs-prod-nonpci-syslog
+#                     logs-prod-nonpci-filebeat   -> index logs-prod-nonpci-filebeat
+#                     logs-prod-nonpci-fluentbit  -> index logs-prod-nonpci-fluentbit
+#                     logs-prod-nonpci-log4j      -> index logs-prod-nonpci-log4j
+#                     (any logs-prod-nonpci-* topic -> same-named index, via wildcard)
 #
-#   NOTE: this connector version expects the topic->index map under
-#   `topic.to.external.resource.mapping` (the old `topic.index.map` key is
-#   silently ignored).
+#   Topics follow the `logs-<account>-<source>` convention (account segment =
+#   FULL AWS account name, e.g. "prod-nonpci" for our simulated lab account),
+#   so the connector subscribes with a single
+#   `topics.regex: logs-prod-nonpci-.*` and writes to an index with the
+#   same name as the topic (no per-topic mapping needed — the ES index template
+#   in configure_elastic.sh matches logs-*). The indices are snapshotted into
+#   the account's ES repository / S3 bucket (see configure_s3_snapshots.sh).
 #
 #   Because Elasticsearch runs inside the vcluster (k8s) while Kafka Connect
 #   runs in Docker Compose, this script starts a `kubectl port-forward` for
@@ -91,9 +98,7 @@ CONNECTOR_JSON=$(cat <<EOF
 {
   "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
   "tasks.max": "1",
-  "topics": "syslog-topic,filebeat-logs",
-  "topic.to.external.resource.mapping": "syslog-topic:logs-syslog,filebeat-logs:logs-filebeat",
-  "external.resource.usage": "index",
+  "topics.regex": "logs-prod-nonpci-.*",
   "connection.url": "http://host.docker.internal:${ES_PF_PORT}",
   "key.converter": "org.apache.kafka.connect.storage.StringConverter",
   "key.ignore": "true",
@@ -131,4 +136,4 @@ else
     die "Connector did not become reachable within 60s — inspect ${CONNECTOR_STATUS}"
 fi
 
-info "Done — Kafka Connect is now streaming syslog-topic + filebeat-logs into ES (logs-syslog / logs-filebeat)."
+info "Done — Kafka Connect is now streaming all logs-prod-nonpci-* topics into ES (same-named indices)."

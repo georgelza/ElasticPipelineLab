@@ -37,14 +37,24 @@ Available commands:
 	make k8s			- Deploy vcluster Kubernetes cluster
 
 	make deployk8s		- Apply k8s/ manifests, wait for rollouts, configure
-					  Elastic (ILM/templates + data views) and the Kafka ES
-					  sink connector
+					  Elastic (ILM/templates + data views), the Kafka ES
+					  sink connector and the S3 snapshot repositories
+					  + SLM policy
+
+	make apply-k8s-layer LAYER=n - Apply one k8s layer by prefix (n = 1..4):
+					  1 = Elastic, 2 = Kibana, 3 = FluentBit,
+					  4 = Traefik (e.g. `make apply-k8s-layer LAYER=4`)
 
 	make sink			- (Re)configure the Kafka Connect Elasticsearch sink
 					  connector (requires ES reachable via port-forward)
 
 	make elastic-setup	- (Re)configure Elasticsearch (ILM/templates) + Kibana
 					  data views
+
+	make s3-snapshots	- (Re)configure the RustFS S3 snapshot repositories
+					  (one per security classification bucket) + the
+					  logs-slm SLM policy (requires ES reachable via
+					  port-forward and the RustFS :9000 API published)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -98,9 +108,9 @@ createtopics:
 
 # ── Kubernetes deployment (vcluster "my-vc1") ────────────────────────────────
 # Applies the k8s/ manifests in order, waits for the Elastic stack to come up,
-# then configures Elasticsearch (ILM/index templates) + Kibana data views and
-# finally registers the Kafka Connect Elasticsearch sink connector so the
-# syslog-topic + filebeat-logs streams land in ES.
+# then configures Elasticsearch (ILM/index templates) + Kibana data views, the
+# Kafka Connect Elasticsearch sink connector (so the logs-* topic streams land
+# in ES) and finally the RustFS S3 snapshot repositories + SLM policy.
 deployk8s:
 	@echo "🚀 Applying k8s/ manifests (namespace, storage, ES, Kibana, FluentBit, Traefik)..."
 	kubectl apply -f k8s/
@@ -117,8 +127,24 @@ deployk8s:
 	@echo "🚀 Configuring the Kafka Connect Elasticsearch sink connector..."
 	make sink
 
+	@echo "🚀 Configuring the RustFS S3 snapshot repositories + SLM policy..."
+	make s3-snapshots
+
 	@echo "✅ ... k8s stack deployed and pipeline configured"
 .PHONY: deployk8s
+
+
+# Apply a single k8s layer by its numeric prefix (1=Elastic, 2=Kibana,
+# 3=FluentBit, 4=Traefik). Usage: make apply-k8s-layer LAYER=3
+# NOTE: the glob must stay QUOTED — shell-expanded globs ("k8s/3.*") are
+# rejected by kubectl ("error: Unexpected args"); kubectl expands the pattern
+# itself when it is passed quoted.
+apply-k8s-layer:
+	@test -n "$(LAYER)" || (echo "Usage: make apply-k8s-layer LAYER=n (1..4)" && exit 1)
+	@echo "🚀 Applying k8s layer $(LAYER) (k8s/$(LAYER).*)..."
+	kubectl apply -f "k8s/$(LAYER).*"
+	@echo "✅ ... k8s layer $(LAYER) applied"
+.PHONY: apply-k8s-layer
 
 
 # Standalone: Elasticsearch ILM/templates + Kibana data views.
@@ -135,6 +161,15 @@ sink:
 	cd scripts && ./configure_es_sink.sh
 	@echo "✅ ... ES sink connector configured"
 .PHONY: sink
+
+
+# Standalone: (re)register the RustFS S3 snapshot repositories (eight
+# security-classification buckets) + the logs-slm SLM policy.
+s3-snapshots:
+	@echo "🚀 Configuring RustFS S3 snapshot repositories + SLM (scripts/configure_s3_snapshots.sh)..."
+	cd scripts && ./configure_s3_snapshots.sh
+	@echo "✅ ... S3 snapshot repositories + SLM configured"
+.PHONY: s3-snapshots
 
 
 

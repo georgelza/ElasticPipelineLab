@@ -6,9 +6,10 @@ The solution includes [Syslog](https://en.wikipedia.org/wiki/Syslog) forwardig o
 
 Our Topics to be utlise the [Kafka Connect](https://www.confluent.io/lp/confluent-connectors/) framework via Kafka Sink Connector jobs, persisting our log streams into [ElasticSearch](https://www.elastic.co), enabling comprehensive log collection and analysis solution.
 
-For Lab purposes we're deploying everything onto [Docker Compose](https://docs.docker.com/compose/) and a [Kubernetes](https://kubernetes.io) environment hosted on a [vCluster](https://www.vcluster.com) stack via VIND
 
+Just to make it clear, all of this is being done on my Apple Macbook, and to put it simply, this would be impossible without what [vCluster](https://www.vcluster.com) allows me to do as far as running a local [Kubernetes](https://kubernetes.io) cluster is concerned.
 
+I'm simulating the off cluster supporting services via [Docker Compose](https://docs.docker.com/compose/).
 
 ## Architecture Overview
 
@@ -104,7 +105,74 @@ graph TD
 
 ![Kubernetes Log Analytics Stack](diagrams/K8s.svg)
 
---- 
+---
+
+## Deployment Layers
+
+The stack is split into five layers. **Layer 0** runs in Docker Compose on the
+host (off-cluster supporting services); **Layers 1–4** are Kubernetes manifests
+under `k8s/`, applied by numeric prefix so each layer can be applied (or
+updated) independently.
+
+### Layer 0 — Docker Compose infrastructure (`make run`)
+
+Off-cluster supporting services, all on the `elastic` Docker bridge network
+(172.20.0.0/16). The vcluster pods reach them through **published-port DNAT**
+plus `hostAliases` (the same pattern FluentBit uses for the Kafka broker).
+
+| Service | Container | Publish | Purpose |
+|---|---|---|---|
+| `broker` | Kafka | `9092/9093` | `logs-prod-nonpci-*` topics (`logs-prod-nonpci-syslog`, `logs-prod-nonpci-filebeat`, `logs-prod-nonpci-fluentbit`, `logs-prod-nonpci-log4j`) |
+| `schema-registry` | Confluent Schema Registry | `8081` | Kafka schemas |
+| `control-center` | Confluent Control Center | `9021` | Kafka Connect UI |
+| `connect` | Kafka Connect | `8083` | ES sink connector (`elasticsearch-sink`) |
+| `syslog-ng` | balabit/syslog-ng | `514/601` | UDP/TCP syslog → `logs-prod-nonpci-syslog` (JSON `format-json`) |
+| `filebeat` | Elastic Filebeat | – | host logs → `logs-prod-nonpci-filebeat` |
+| `rustfs` | RustFS (S3) | `9000` S3 API / `9001` console | snapshot object store (eight classification buckets) |
+
+### Layer 1 — Elasticsearch (`kubectl apply -f "k8s/1.*"`)
+
+| File | Contents |
+|---|---|
+| `1.00.elastic-namespace.yaml` | `elastic` namespace |
+| `1.01.elastic-storage.yaml` | PVs/PVCs for `es-1` (worker-1) and `es-2` (worker-2) |
+| `1.02.elasticsearch.yaml` | ConfigMap (`elasticsearch.yml`, incl. `s3.client.default` endpoint/region/path-style), two `Deployment`s (es-1/es-2), Service + headless Service, `hostAliases` `rustfs → 172.20.0.3`, keystore volume |
+| `1.03.es-s3-credentials.yaml` | `es-s3-credentials` (plain reference copy) + `es-s3-keystore` (pre-seeded keystore with `s3.client.default.access_key`/`secret_key`) |
+
+> **Why a keystore?** ES 8.13's repository-s3 does **not** read
+> `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` env vars (its fallback chain is
+> the EC2 instance-metadata provider only). Credentials must be placed in the
+> ES keystore, which is mounted read-only into both pods.
+
+### Layer 2 — Kibana (`kubectl apply -f "k8s/2.*"`)
+
+| File | Contents |
+|---|---|
+| `2.01.kibana.yaml` | Kibana `Deployment` + Service (`basePath: /kibana`, routed by Traefik) |
+
+### Layer 3 — FluentBit (`kubectl apply -f "k8s/3.*"`)
+
+| File | Contents |
+|---|---|
+| `3.01.fluent-bit-config.yaml` | FluentBit config: CRI parser, tail of `/var/log/containers/*.log`, `[OUTPUT] kafka` → `logs-prod-nonpci-fluentbit`, `timestamp → @timestamp` |
+| `3.02.fluent-bit-daemonset.yaml` | DaemonSet with `hostAliases` `broker → 172.20.0.2` |
+| `3.03.fluent-bit-service.yaml` | Metrics service |
+
+### Layer 4 — Traefik (`kubectl apply -f "k8s/4.*"`)
+
+| File | Contents |
+|---|---|
+| `4.01.traefik-crds.yaml` | Traefik CRDs (IngressRoute, Middleware, …) |
+| `4.02.traefik-rbac.yaml` | RBAC for the `ingress-traefik1` namespace |
+| `4.03.traefik-deploy.yaml` | Traefik Deployment/Service (`web:8000`, `websecure:8443`, `traefik:8080`, `metrics:9100`) |
+| `4.04.traefik-ingressroutes.yaml` | `strip-elasticsearch` middleware + `elastic-ingress` IngressRoute (`/kibana` → `kibana:5601`, `/elasticsearch` → `elasticsearch:9200`) |
+
+> **Quoted globs required.** Shell-expanded globs are rejected by kubectl
+> (`error: Unexpected args`). Always quote the pattern so kubectl expands it:
+> `kubectl apply -f "k8s/1.*"`. The Makefile target `make apply-k8s-layer LAYER=n`
+> already does this.
+
+---
 
 ## Deployment Instructions
 
@@ -272,7 +340,7 @@ The Filebeat service in Docker Compose will:
 
 - Collect logs from `/var/log` and Docker container logs
 - Forward logs to the Kafka broker at `broker:29092`
-- Use the topic `filebeat-logs`
+- Use the topic `logs-prod-nonpci-filebeat`
 
 For detailed configuration and setup instructions, see [DEPLOY_FILEBEAT_DOCKER.md](DEPLOY_FILEBEAT_DOCKER.md).
 
@@ -287,19 +355,36 @@ For detailed configuration and setup instructions, see [DEPLOY_FILEBEAT_DOCKER.m
 
 ## S3 Storage Configuration
 
-The system provides flexible S3 storage configuration that organizes log data by a specific directory structure:
+The system organizes snapshot data by security-classification **AWS account**:
+the S3 bucket name maps 1:1 to the source AWS account name (a "set of
+information/systems aligned and managed together" financially / governance
+wise) and the Elasticsearch snapshot repository shares the **same name** as the
+bucket. The account template holds eight classifications (`prod-pci`,
+`prod-nonpci`, `prod-unregulated`, `prod-ife`, `nonprod-pci`, `nonprod-nonpci`,
+`nonprod-unregulated`, `nonprod-ife`); log feeds carry the account in the topic
+name (`logs-prod-nonpci-*` = simulated `prod-nonpci` account). See
+`scripts/configure_s3_snapshots.sh` and `Deployment/DATASETS.md`.
 
-Directory structure: `<S3 endpoint>/<project name>/<aws account name>/year=<year>/month=<month>/day=<day>/<instanceId or Hostname>`
+Directory structure (inside each bucket; `<project name>` is the FIRST path
+element, date segments are zero-padded — `year=yyyy`, `month=mm`, `day=dd`):
+
+```
+<S3 endpoint>/<bucket == aws account name>/<project name = log_analytics>/year=yyyy/month=mm/day=dd/<instanceId or Hostname>
+```
 
 Configuration parameters:
 
-- `S3_ENDPOINT`: The S3 endpoint URL  
-- `S3_PROJECT_NAME`: Project identifier (default: elastic-pipeline)
-- `S3_AWS_ACCOUNT_NAME`: AWS account identifier (default: elastic-account)
+- `S3_ENDPOINT`: The S3 endpoint URL
+- `S3_PROJECT_NAME`: Project identifier — first path element (default: log_analytics)
+- `S3_AWS_ACCOUNT_NAME`: Default AWS account identifier — account names map
+  to bucket names (default: elastic-account)
 - `S3_BUCKET_NAME`: S3 bucket name (default: my-log-bucket)
 - `S3_REGION`: AWS region (default: af-south-1)
 
-All S3 credentials are stored in environment variables and should be managed securely. The actual storage folder structure is implemented by the RustFS service according to the defined naming convention.
+All S3 credentials are stored in environment variables and should be managed
+securely (the ES side uses a pre-seeded keystore — see
+`k8s/1.03.es-s3-credentials.yaml`). The actual storage folder structure is
+implemented by the RustFS service according to the defined naming convention.
 
 ---
 

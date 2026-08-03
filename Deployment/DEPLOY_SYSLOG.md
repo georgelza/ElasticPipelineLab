@@ -7,10 +7,10 @@
 > `infrastructure/syslog-ng/syslog-ng.conf` into
 > `./data/syslog-ng/config/syslog-ng.conf` by `make run`. It publishes **JSON
 > payloads** (`$(format-json)` in a `message(...)` body) **directly** to the
-> `syslog-topic` Kafka topic on **`broker:29092`** (the Kafka broker — **not**
+> `logs-prod-nonpci-syslog` Kafka topic on **`broker:29092`** (the Kafka broker — **not**
 > `connect:8083`, which is the Kafka Connect REST API). No file/Filebeat hop.
-> The Kafka → Elasticsearch sink connector then indexes `syslog-topic` into the
-> `logs-syslog` ES index. The Kubernetes DaemonSet/ConfigMap sections further
+> The Kafka → Elasticsearch sink connector then indexes `logs-prod-nonpci-syslog` into the
+> `logs-prod-nonpci-syslog` ES index. The Kubernetes DaemonSet/ConfigMap sections further
 > down are kept for reference but are **deprecated** for this repo.
 
 > **Why `balabit/syslog-ng`?** The `linuxserver/syslog-ng` image (Alpine) ships
@@ -86,7 +86,7 @@ source s_syslog {
 destination d_kafka {
     kafka(
         bootstrap-servers("broker:29092")
-        topic("syslog-topic")
+        topic("logs-prod-nonpci-syslog")
         key("syslog")
         # JSON payload so the ES sink JsonConverter can index it directly;
         # message() (not value()/template()) is the 4.x body option.
@@ -236,7 +236,7 @@ Adjust these values in the Docker Compose file based on your system's capacity a
 
 ## Integration with Kafka Connect
 
-This configuration will deliver events to the "syslog-topic" in Kafka, which can be:
+This configuration will deliver events to the "logs-prod-nonpci-syslog" in Kafka, which can be:
 
 1. Connected to Elasticsearch through Kafka Connect
 2. Monitored via Control Center
@@ -248,9 +248,9 @@ After deployment, you should see:
 
 1. Container named `syslog-ng` running
 2. Log entries showing successful connection to `broker:29092`
-3. Forwarded log entries appearing in the `syslog-topic` Kafka topic
-4. The `elasticsearch-sink` connector indexing `syslog-topic` into the `logs-syslog` ES index
-5. Documents visible in the `logs-syslog*` Kibana data view
+3. Forwarded log entries appearing in the `logs-prod-nonpci-syslog` Kafka topic
+4. The `elasticsearch-sink` connector indexing `logs-prod-nonpci-syslog` into the `logs-prod-nonpci-syslog` ES index
+5. Documents visible in the `logs-prod-nonpci-*` Kibana data view
 
 ---
 
@@ -324,7 +324,7 @@ spec:
           destination d_kafka {
               kafka(
                   bootstrap_servers("connect:8083")
-                  topic("syslog-topic")
+                  topic("logs-prod-nonpci-syslog")
                   key("syslog")
               );
           };
@@ -425,7 +425,7 @@ data:
     destination d_kafka {
         kafka(
             bootstrap_servers("connect:8083")
-            topic("syslog-topic")
+            topic("logs-prod-nonpci-syslog")
             key("syslog")
         );
     };

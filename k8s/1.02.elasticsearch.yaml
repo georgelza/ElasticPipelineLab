@@ -18,6 +18,22 @@ data:
     xpack.monitoring.collection.enabled: true
     # Allow Filebeat index template creation
     action.auto_create_index: ".monitoring-*,filebeat-*,logs-*"
+    # ── S3 (RustFS) snapshot repository client ────────────────────────────────
+    # The bundled repository-s3 module is used to offload log indices to the
+    # Docker Compose RustFS object store (bucket "my-log-bucket").
+    # Credentials come from the pre-seeded Elasticsearch keystore mounted into
+    # each pod (see k8s/1.03.es-s3-credentials.yaml). NOTE: ES 8.13's
+    # repository-s3 does NOT read AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env
+    # vars — the keystore is the only credential source.
+    # "rustfs" is resolved to 172.20.0.3 (compose bridge) via hostAliases on
+    # each pod — the same published-port DNAT path the FluentBit DaemonSet
+    # uses to reach the Kafka broker.
+    s3.client.default:
+      endpoint: "http://rustfs:9000"
+      protocol: "http"
+      path_style_access: true
+      region: "af-south-1"
+      max_retries: 3
 
 ---
 # ── Elasticsearch Deployment — node 1 (es-1 → worker-1) ───────────────────────
@@ -45,6 +61,12 @@ spec:
       # resolves to ./data/vc1/n1/elasticsearch on the host (persistence under ./data/).
       nodeSelector:
         kubernetes.io/hostname: worker-1
+      # Resolve the compose-network "rustfs" hostname to the RustFS container
+      # (S3 API published on :9000, reached via host published-port DNAT).
+      hostAliases:
+        - ip: "172.20.0.3"
+          hostnames:
+            - "rustfs"
       securityContext:
         fsGroup: 1000
         runAsUser: 1000
@@ -115,6 +137,15 @@ spec:
             - name: config
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
               subPath: elasticsearch.yml
+            # Pre-seeded keystore with s3.client.default.* secure settings
+            # (root-owned, 0444 — readable by uid 1000, accepted by the ES
+            # keystore loader). The docker-entrypoint only writes the keystore
+            # when ELASTIC_PASSWORD is set (not our case), so a read-only
+            # mount is safe.
+            - name: es-s3-keystore
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.keystore
+              subPath: elasticsearch.keystore
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -122,6 +153,10 @@ spec:
         - name: config
           configMap:
             name: elasticsearch-config
+        - name: es-s3-keystore
+          secret:
+            secretName: es-s3-keystore
+            defaultMode: 0444
 
 ---
 # ── Elasticsearch Deployment — node 2 (es-2 → worker-2) ───────────────────────
@@ -149,6 +184,12 @@ spec:
       # ./data/vc1/n2/elasticsearch-2 on the host (persistence under ./data/).
       nodeSelector:
         kubernetes.io/hostname: worker-2
+      # Resolve the compose-network "rustfs" hostname to the RustFS container
+      # (S3 API published on :9000, reached via host published-port DNAT).
+      hostAliases:
+        - ip: "172.20.0.3"
+          hostnames:
+            - "rustfs"
       securityContext:
         fsGroup: 1000
         runAsUser: 1000
@@ -214,6 +255,15 @@ spec:
             - name: config
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
               subPath: elasticsearch.yml
+            # Pre-seeded keystore with s3.client.default.* secure settings
+            # (root-owned, 0444 — readable by uid 1000, accepted by the ES
+            # keystore loader). The docker-entrypoint only writes the keystore
+            # when ELASTIC_PASSWORD is set (not our case), so a read-only
+            # mount is safe.
+            - name: es-s3-keystore
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.keystore
+              subPath: elasticsearch.keystore
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -221,6 +271,10 @@ spec:
         - name: config
           configMap:
             name: elasticsearch-config
+        - name: es-s3-keystore
+          secret:
+            secretName: es-s3-keystore
+            defaultMode: 0444
 
 ---
 # ── Elasticsearch Service (load balancer in front of both nodes) ──────────────

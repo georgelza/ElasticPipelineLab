@@ -42,7 +42,7 @@ The configuration includes two input types:
 ```yaml
 output.kafka:
   hosts: ["broker:29092"]
-  topic: "filebeat-logs"
+  topic: "logs-prod-nonpci-filebeat"
   partition.key: "log_type"
   required_acks: 1
   compression: gzip
@@ -52,7 +52,7 @@ output.kafka:
 This configuration ensures that:
 
 - Logs are sent to the Kafka broker running at `broker:29092` 
-- Logs are published to the `filebeat-logs` topic
+- Logs are published to the `logs-prod-nonpci-filebeat` topic
 - Partitioning is based on `log_type` (docker vs system)
 - Gzip compression is applied for efficient transmission
 - Messages don't exceed 1MB in size
@@ -107,7 +107,7 @@ docker logs filebeat
 ```
 
 3. Confirm log transmission to Kafka:
-- Check that messages are appearing in the `filebeat-logs` topic
+- Check that messages are appearing in the `logs-prod-nonpci-filebeat` topic
 - Monitor Kafka consumer activity to verify log consumption
 
 4. Ensure connectivity to broker:

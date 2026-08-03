@@ -3,24 +3,34 @@
 This directory is the single deployment source for the Elastic stack on the
 `my-vc1` vcluster (see `../vcluster.yml`).
 
-Files are numbered in the order they must be applied — `kubectl apply -f k8s/`
-applies them in correct deployment order (zero-padded so 10 sorts after 9).
+Manifests are grouped into **layers** by component. The first digit is the
+layer (1 = Elasticsearch, 2 = Kibana, 3 = FluentBit, 4 = Traefik); the second
+digit is the apply order *within* that layer (zero-padded so 10 sorts after 2).
 
-## Deployment Order
+## Layer Map
+
+| Layer | Prefix | What it deploys |
+|-------|--------|-----------------|
+| 1 — Elastic | `1.*` | `elastic` namespace + PVs/PVCs + Elasticsearch (2-node cluster) |
+| 2 — Kibana | `2.*` | Kibana Deployment + Service (basePath `/kibana`) |
+| 3 — FluentBit | `3.*` | FluentBit ConfigMap + DaemonSet + metrics Service |
+| 4 — Traefik | `4.*` | Traefik v3 CRDs + RBAC + Deployment + IngressRoutes |
+
+## Files
 
 | # | File | What it deploys |
 |---|------|-----------------|
-| 00 | `00.elastic-namespace.yaml` | `elastic` namespace |
-| 01 | `01.elastic_storage.yaml` | PVs + PVCs for both ES nodes: `elasticsearch-pv`/`elasticsearch-data` (`/data/elasticsearch`) and `elasticsearch-pv-2`/`elasticsearch-data-2` (`/data/elasticsearch-2`) |
-| 02 | `02.elasticsearch.yaml` | ES ConfigMap + 2 Deployments (`elasticsearch-1` → es-1/worker-1, `elasticsearch-2` → es-2/worker-2) + load-balancer & headless Services — one 2-node cluster |
-| 03 | `03.kibana.yaml` | Kibana ConfigMap + Deployment + Service (8.13.4, basePath `/kibana`) |
-| 04 | `04.fluent-bit-config.yaml` | FluentBit config (tail → Kafka `filebeat-logs`) |
-| 05 | `05.fluent-bit-daemonset.yaml` | FluentBit DaemonSet |
-| 06 | `06.fluent-bit-service.yaml` | FluentBit metrics service (2020) |
-| 07 | `07.traefik-crds.yaml` | Traefik v3 CRDs (IngressRoute, Middleware, ...) |
-| 08 | `08.traefik-rbac.yaml` | `ingress-traefik1` namespace + ServiceAccount + RBAC |
-| 09 | `09.traefik-deploy.yaml` | Traefik Deployment + Service |
-| 10 | `10.traefik-ingressroutes.yaml` | Middlewares + IngressRoutes (kibana, elasticsearch, ...) |
+| 1.00 | `1.00.elastic-namespace.yaml` | `elastic` namespace |
+| 1.01 | `1.01.elastic-storage.yaml` | PVs + PVCs for both ES nodes: `elasticsearch-pv-1`/`elasticsearch-data-1` (`/data/elasticsearch`) and `elasticsearch-pv-2`/`elasticsearch-data-2` (`/data/elasticsearch-2`) |
+| 1.02 | `1.02.elasticsearch.yaml` | ES ConfigMap + 2 Deployments (`elasticsearch-1` → es-1/worker-1, `elasticsearch-2` → es-2/worker-2) + load-balancer & headless Services — one 2-node cluster |
+| 2.01 | `2.01.kibana.yaml` | Kibana ConfigMap + Deployment + Service (8.13.4, basePath `/kibana`) |
+| 3.01 | `3.01.fluent-bit-config.yaml` | FluentBit config (tail → Kafka `logs-prod-nonpci-fluentbit`) |
+| 3.02 | `3.02.fluent-bit-daemonset.yaml` | FluentBit DaemonSet |
+| 3.03 | `3.03.fluent-bit-service.yaml` | FluentBit metrics service (2020) |
+| 4.01 | `4.01.traefik-crds.yaml` | Traefik v3 CRDs (IngressRoute, Middleware, ...) |
+| 4.02 | `4.02.traefik-rbac.yaml` | `ingress-traefik1` namespace + ServiceAccount + RBAC |
+| 4.03 | `4.03.traefik-deploy.yaml` | Traefik Deployment + Service |
+| 4.04 | `4.04.traefik-ingressroutes.yaml` | Middlewares + IngressRoutes (kibana, elasticsearch, ...) |
 
 ## Deploy Everything
 
@@ -28,29 +38,43 @@ applies them in correct deployment order (zero-padded so 10 sorts after 9).
 kubectl apply -f k8s/
 ```
 
-Or step-by-step:
+## Deploy by Layer
+
+Apply a whole layer with a glob (shell expands it):
 
 ```bash
-kubectl apply -f k8s/00.elastic-namespace.yaml
-kubectl apply -f k8s/01.elastic_storage.yaml
-kubectl apply -f k8s/02.elasticsearch.yaml
-kubectl apply -f k8s/03.kibana.yaml
-kubectl apply -f k8s/04.fluent-bit-config.yaml
-kubectl apply -f k8s/05.fluent-bit-daemonset.yaml
-kubectl apply -f k8s/06.fluent-bit-service.yaml
-kubectl apply -f k8s/07.traefik-crds.yaml
-kubectl apply -f k8s/08.traefik-rbac.yaml
-kubectl apply -f k8s/09.traefik-deploy.yaml
-kubectl apply -f k8s/10.traefik-ingressroutes.yaml
+kubectl apply -f k8s/1.*     # Elastic: namespace + storage + Elasticsearch
+kubectl apply -f k8s/2.*     # Kibana
+kubectl apply -f k8s/3.*     # FluentBit
+kubectl apply -f k8s/4.*     # Traefik
 ```
 
-> Note: the Elasticsearch + Kibana workloads and the Traefik ingress previously
+Or step-by-step within a layer:
+
+```bash
+kubectl apply -f k8s/1.00.elastic-namespace.yaml
+kubectl apply -f k8s/1.01.elastic-storage.yaml
+kubectl apply -f k8s/1.02.elasticsearch.yaml
+kubectl apply -f k8s/2.01.kibana.yaml
+kubectl apply -f k8s/3.01.fluent-bit-config.yaml
+kubectl apply -f k8s/3.02.fluent-bit-daemonset.yaml
+kubectl apply -f k8s/3.03.fluent-bit-service.yaml
+kubectl apply -f k8s/4.01.traefik-crds.yaml
+kubectl apply -f k8s/4.02.traefik-rbac.yaml
+kubectl apply -f k8s/4.03.traefik-deploy.yaml
+kubectl apply -f k8s/4.04.traefik-ingressroutes.yaml
+```
+
+> Layer 1 creates the `elastic` namespace that layers 2–3 deploy into, and
+> layer 4's IngressRoutes target the Kibana/ES Services from layers 1–2 — so
+> apply the layers in dependency order (1 → 2 → 3 → 4) when going layer by
+> layer.
 
 ## Details
 
 - All Elastic components deploy to the `elastic` namespace.
 - Elasticsearch runs as a **2-node cluster** (production-style simulation):
-  - `es-1` — Deployment `elasticsearch-1` on `worker-1`, PVC `elasticsearch-data`
+  - `es-1` — Deployment `elasticsearch-1` on `worker-1`, PVC `elasticsearch-data-1`
     (hostPath `/data/elasticsearch` → `./data/vc1/n1/elasticsearch`).
   - `es-2` — Deployment `elasticsearch-2` on `worker-2`, PVC `elasticsearch-data-2`
     (hostPath `/data/elasticsearch-2` → `./data/vc1/n2/elasticsearch-2`).
@@ -64,7 +88,7 @@ kubectl apply -f k8s/10.traefik-ingressroutes.yaml
 - Kibana is served under the `/kibana` base path (`server.basePath: /kibana`) for
   the Traefik ingress.
 - FluentBit is deployed as a DaemonSet to collect container logs and forward them
-  to Kafka through the `filebeat-logs` topic.
+  to Kafka through the `logs-prod-nonpci-fluentbit` topic.
 
 ## Port Forwards (direct, without ingress)
 

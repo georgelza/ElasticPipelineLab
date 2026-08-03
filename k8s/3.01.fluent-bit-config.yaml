@@ -39,7 +39,7 @@ data:
         Name kafka
         Match *
         brokers broker:29092
-        topics filebeat-logs
+        topics logs-prod-nonpci-fluentbit
         format json
         queue_full_retries 10
 

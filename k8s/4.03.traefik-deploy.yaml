@@ -1,8 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Traefik Ingress for monitoring stack
+# Traefik Ingress for the Elastic logging stack
 # Namespace: ingress-traefik1
 #
 # This deploys the Traefik Deployment and Service.
+#
+# Entrypoints:
+#   web       :8000  — HTTP  (routed via IngressRoutes, see 4.04)
+#   websecure :8443  — HTTPS (TLS)
+#   traefik   :8080  — Traefik dashboard / API
+#   metrics   :9100  — Prometheus metrics
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -61,8 +67,6 @@ spec:
             - --entryPoints.web.address=:8000/tcp
             - --entryPoints.websecure.address=:8443/tcp
             - --entryPoints.websecure.http.tls=true
-            # RustFS console served at root on dedicated port
-            - --entryPoints.rustfs-console.address=:9001/tcp
             # ── API & Metrics ────────────────────────────────────────────────
             - --api.dashboard=true
             - --ping=true
@@ -102,9 +106,6 @@ spec:
               protocol: TCP
             - containerPort: 8443
               name: websecure
-              protocol: TCP
-            - containerPort: 9001
-              name: rustfs-console
               protocol: TCP
           livenessProbe:
             failureThreshold: 3
@@ -162,8 +163,4 @@ spec:
     - name: websecure
       port: 443
       targetPort: 8443
-      protocol: TCP
-    - name: rustfs-console
-      port: 9001
-      targetPort: 9001
       protocol: TCP

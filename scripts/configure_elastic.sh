@@ -12,11 +12,11 @@
 #     1. Ensure Elasticsearch is reachable (kubectl port-forward)
 #     2. Create the `logs-ilm` ILM policy (hot -> delete)
 #     3. Create the `logs-template` composable index template for
-#        logs-* / filebeat-* (picks up logs-syslog, logs-filebeat, ...)
+#        logs-* (picks up logs-prod-nonpci-syslog, logs-prod-nonpci-filebeat, ...)
 #     4. Ensure Kibana is reachable (kubectl port-forward)
-#     5. Create Kibana data views:
-#            logs-syslog*   (time field ISODATE)   - syslog-ng -> Kafka stream
-#            logs-filebeat* (time field @timestamp) - FluentBit -> Kafka stream
+#     5. Create the Kibana data view:
+#            logs-prod-nonpci-*  (time field @timestamp) - all feeds of the
+#            simulated prod-nonpci account (syslog/filebeat/fluentbit/log4j)
 #
 #   Idempotent — safe to re-run.
 #
@@ -96,7 +96,7 @@ curl -fsS -X PUT "http://localhost:${ES_PORT}/_ilm/policy/logs-ilm" \
 say "ILM policy 'logs-ilm' created"
 
 # ── 3. Composable index template ─────────────────────────────────────────────
-info "3. Creating composable index template 'logs-template' for logs-*/filebeat-*..."
+info "3. Creating composable index template 'logs-template' for logs-*..."
 curl -fsS -X PUT "http://localhost:${ES_PORT}/_index_template/logs-template" \
     -H 'Content-Type: application/json' \
     -d '{
@@ -164,7 +164,6 @@ EOF
     esac
 }
 
-create_data_view "logs-syslog"   "logs-syslog*"   "@timestamp"
-create_data_view "logs-filebeat" "logs-filebeat*" "@timestamp"
+create_data_view "logs-prod-nonpci" "logs-prod-nonpci-*" "@timestamp"
 
 info "Done — Elasticsearch ILM/templates + Kibana data views configured."

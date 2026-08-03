@@ -19,8 +19,11 @@ Log-analytics pipeline for this repo:
 graph TD
     A[Syslog Sources] --> B[Syslog-NG - Docker Compose]
     H[FluentBit DaemonSet] --> D[Kafka - Docker Compose]
-    B -->|syslog-topic| D
-    D -->|filebeat-logs| E[Kafka Connect ES Sink - Compose]
+    C[Filebeat - Docker Compose] --> D
+    B -->|logs-prod-nonpci-syslog| D
+    C -->|logs-prod-nonpci-filebeat| D
+    H -->|logs-prod-nonpci-fluentbit| D
+    D -->|logs-prod-nonpci-.* wildcard| E[Kafka Connect ES Sink - Compose]
     E --> F[Elasticsearch Service backed by 2x Deployments on vcluster]
     F --> G[Kibana UI]
     K[Traefik Ingress, http://localhost:8080/elasticsearch or http://localhost:8080/kibana] --> F
@@ -64,14 +67,17 @@ connect, syslog-ng, rustfs). `make run` also:
 
 - provisions `./data/syslog-ng/config/syslog-ng.conf` from
   `infrastructure/syslog-ng/syslog-ng.conf` (canonical source), and
-- creates the Kafka topics (`syslog-topic`, `filebeat-logs`).
+- creates the Kafka topics (`logs-prod-nonpci-syslog`, `logs-prod-nonpci-filebeat`,
+  `logs-prod-nonpci-fluentbit`, `logs-prod-nonpci-log4j` — the
+  `logs-<account>-<source>` family, see `scripts/cre_topics.sh`).
 
 ```bash
 make run
 ```
 
-> syslog-ng publishes **JSON payloads** (`$(format-json)`) to `syslog-topic` on
-> `broker:29092` so the ES sink connector's `JsonConverter` can parse them.
+> syslog-ng publishes **JSON payloads** (`$(format-json)`) to
+> `logs-prod-nonpci-syslog` on `broker:29092` so the ES sink connector's
+> `JsonConverter` can parse them.
 
 ## 4. Deploy the Kubernetes Stack
 
@@ -93,17 +99,17 @@ This performs, in order:
    - creates the `logs-template` composable index template for `logs-*` /
      `filebeat-*` (`@timestamp` + `ISODATE` as `date` fields, 1 shard / 1
      replica, lifecycle `logs-ilm`),
-   - creates Kibana data views: `logs-syslog*` (time field `ISODATE`) and
-     `logs-filebeat*` (time field `@timestamp`).
+   - creates the Kibana data view `logs-prod-nonpci` matching `logs-prod-nonpci-*`
+     (time field `@timestamp`).
 4. **Register the Kafka Connect ES sink connector** — `make sink`
    (`scripts/configure_es_sink.sh`), see §6.
 
 ## 5. Elasticsearch (2-node cluster)
 
-Manifest: `k8s/02.elasticsearch.yaml` (+ storage in `k8s/01.elastic_storage.yaml`).
+Manifest: `k8s/1.02.elasticsearch.yaml` (+ storage in `k8s/1.01.elastic-storage.yaml`).
 
 | Node | Deployment | Worker | PVC (hostPath) |
-|------|------------|--------|----------------|
+|:--- |:--- |:--- |:--- |
 | `es-1` | `elasticsearch-1` | `worker-1` | `elasticsearch-data` → `./data/vc1/n1/elasticsearch` |
 | `es-2` | `elasticsearch-2` | `worker-2` | `elasticsearch-data-2` → `./data/vc1/n2/elasticsearch-2` |
 
@@ -118,7 +124,7 @@ Key settings:
   check).
 - Security **disabled** (`xpack.security.enabled: false`) — homelab only.
 - `action.auto_create_index: ".monitoring-*,filebeat-*,logs-*"` — the sink
-  connector's `logs-syslog` / `logs-filebeat` indices auto-create.
+  connector's `logs-prod-nonpci-*` indices auto-create.
 - The `elasticsearch` Service + Traefik ingress load-balance across both pods;
   the headless `elasticsearch-headless` Service is used for node discovery.
 
@@ -143,11 +149,9 @@ Kafka Connect runs as the **Docker Compose `connect` service**
    map**, not the `{"name","config"}` wrapper used by `POST /connectors`):
 
    | Setting | Value |
-   |---------|-------|
+   |:--- |:--- |
    | `connector.class` | `io.confluent.connect.elasticsearch.ElasticsearchSinkConnector` |
-   | `topics` | `syslog-topic,filebeat-logs` |
-   | `topic.to.external.resource.mapping` | `syslog-topic:logs-syslog, filebeat-logs:logs-filebeat` |
-   | `external.resource.usage` | `index` |
+   | `topics.regex` | `logs-prod-nonpci-.*` |
    | `connection.url` | `http://host.docker.internal:9200` |
    | `value.converter` | `org.apache.kafka.connect.json.JsonConverter`, `schemas.enable=false` |
    | `key.ignore` / `schema.ignore` | `true` |
@@ -155,13 +159,21 @@ Kafka Connect runs as the **Docker Compose `connect` service**
 
 3. Waits for the connector to reach `RUNNING` state.
 
-> **`topic.index.map` vs `topic.to.external.resource.mapping`:** this connector
-> version silently ignores the old `topic.index.map` key (it would write to
-> topic-named indices like `filebeat-logs`). Use
-> `topic.to.external.resource.mapping` **together with**
-> `external.resource.usage: index` — the config is rejected unless both are
-> set. The connector also validates that the mapped indices exist up-front, so
-> `make elastic-setup` (index template) should run before `make sink`.
+> **Topic naming convention — `logs-<account>-<source>`:** source topics are
+> account-encoded — `logs-prod-nonpci-syslog`, `logs-prod-nonpci-filebeat`,
+> `logs-prod-nonpci-fluentbit`, ... (account first, source last) — so the sink
+> subscribes with a single `topics.regex: logs-prod-nonpci-.*` wildcard and writes
+> each topic into a **same-named ES index** (no per-topic mapping required — the
+> index template from `make elastic-setup` already matches `logs-*`). New
+> sources/accounts are picked up automatically as long as they follow the
+> convention; each account's indices map to that account's S3 snapshot
+> repository (see `Deployment/DATASETS.md`).
+
+> **`topic.index.map` / `topic.to.external.resource.mapping`:** not needed with
+> this naming scheme. (Note: this connector version also silently ignores the
+> old `topic.index.map` key, and `topic.to.external.resource.mapping` must be
+> paired with `external.resource.usage: index` and pre-existing indices if
+> used — the wildcard approach avoids all of that.)
 
 > **Connect → ES reachability:** ES runs inside the vcluster; the Compose
 > `connect` container reaches it through the host via `host.docker.internal`
@@ -171,12 +183,18 @@ Kafka Connect runs as the **Docker Compose `connect` service**
 ## 7. Data Flow
 
 | Stream | Source → Kafka topic | ES index (sink) | Kibana data view |
-|--------|----------------------|-----------------|------------------|
-| Syslog | host/syslog-ng → `syslog-topic` | `logs-syslog` | `logs-syslog*` (time: `@timestamp`) |
-| Container logs | FluentBit DaemonSet → `filebeat-logs` | `logs-filebeat` | `logs-filebeat*` (time: `@timestamp`) |
+|:--- |:--- |:--- |:--- |
+| Syslog | host/syslog-ng → `logs-prod-nonpci-syslog` | `logs-prod-nonpci-syslog` | `logs-prod-nonpci-*` (time: `@timestamp`) |
+| Host logs | Filebeat (Compose) → `logs-prod-nonpci-filebeat` | `logs-prod-nonpci-filebeat` | `logs-prod-nonpci-*` (time: `@timestamp`) |
+| Container logs | FluentBit DaemonSet → `logs-prod-nonpci-fluentbit` | `logs-prod-nonpci-fluentbit` | `logs-prod-nonpci-*` (time: `@timestamp`) |
+| Application logs | Log4j appenders → `logs-prod-nonpci-log4j` | `logs-prod-nonpci-log4j` | `logs-prod-nonpci-*` (time: `@timestamp`) |
+
+The sink connector consumes the whole `logs-prod-nonpci-*` family (`topics.regex`) —
+any topic following the `logs-<account>-<source>` convention is indexed
+automatically.
 
 FluentBit resolves the Compose `broker` hostname via `hostAliases` →
-`172.20.0.2` (`k8s/05.fluent-bit-daemonset.yaml`) — update that IP if the
+`172.20.0.2` (`k8s/3.02.fluent-bit-daemonset.yaml`) — update that IP if the
 Compose bridge network changes.
 
 ## 8. Access
@@ -207,7 +225,7 @@ curl -s localhost:9200/_cluster/health?pretty
 curl -s localhost:9200/_cat/nodes?v
 
 # Indices from the sink connector
-curl -s localhost:9200/_cat/indices/logs-*?v
+curl -s localhost:9200/_cat/indices/logs-prod-nonpci-*?v
 
 # Sink connector state
 curl -s localhost:8083/connectors/elasticsearch-sink/status | python3 -m json.tool
@@ -218,9 +236,9 @@ curl -s 'localhost:5601/kibana/api/saved_objects/_find?type=index-pattern&fields
 
 ## 10. Troubleshooting
 
-- **No documents in `logs-filebeat` / `logs-syslog`**:
+- **No documents in `logs-prod-nonpci-filebeat` / `logs-prod-nonpci-syslog`**:
   1. `make sink` — is the connector `RUNNING`?
-  2. Are messages on the topics? `docker compose -p elastic exec broker kafka-console-consumer --bootstrap-server localhost:9092 --topic filebeat-logs --from-beginning --max-messages 5`
+  2. Are messages on the topics? `docker compose -p elastic exec broker kafka-console-consumer --bootstrap-server localhost:9092 --topic logs-prod-nonpci-filebeat --from-beginning --max-messages 5`
   3. Is the port-forward alive while the connector runs? (Restarting it
      mid-flight breaks the connection; re-run `make sink` afterwards.)
   4. FluentBit broker IP drift — re-check `kubectl get pod -n elastic -o wide` +

@@ -7,10 +7,18 @@
 #   Version               :   v1.0.0
 #   Author                :   George Leonard / georgelza@gmail.com
 #
-#   Creates the Kafka topics used by the log analytics pipeline:
-#       syslog-topic    — syslog-ng forwarded logs (Docker Compose)
-#       filebeat-logs   — Filebeat (Docker Compose) + FluentBit (Kubernetes) logs
-#       syslog-topic-*  — per-classification / per-security-segment topics
+#   Creates the Kafka topics used by the log analytics pipeline.
+#   Topics follow the `logs-<account>-<source>` convention — the account
+#   segment is the FULL AWS account name (e.g. "prod-nonpci" for our lab) so
+#   the ES sink connector subscribes to a whole account's feeds with a single
+#   wildcard (`logs-prod-nonpci-.*`), which in turn maps to that account's ES
+#   snapshot repository / S3 bucket:
+#       logs-prod-nonpci-syslog     — syslog-ng forwarded logs (Docker Compose)
+#       logs-prod-nonpci-filebeat   — Filebeat (Docker Compose) host logs
+#       logs-prod-nonpci-fluentbit  — FluentBit (Kubernetes) container/pod logs
+#       logs-prod-nonpci-log4j      — Log4j appender logs (applications)
+#       logs-<account>-*            — future accounts/sources follow the same rule
+#   (We currently simulate a single account: prod-nonpci.)
 #
 #   Usage: ./cre_topics.sh
 #
@@ -28,25 +36,11 @@ ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 COMPOSE_FILE="${COMPOSE_FILE:-${ROOT}/docker-compose.yml}"
 
 # Format: "topic_name:partitions:replication_factor"
-# TOPICS=(
-#     "syslog-topic:2:1"
-#     "filebeat-logs:2:1"
-#     "syslog-topic-prod-pci:2:1"
-#     "syslog-topic-prod-nonpci:2:1"
-#     "syslog-topic-prod-pci-ife:2:1"
-#     "syslog-topic-prod-nonpci-ife:2:1"
-#     "syslog-topic-nonprod-pci:2:1"
-#     "syslog-topic-nonprod-nonpci:2:1"
-#     "syslog-topic-nonprod-pci-ife:2:1"
-#     "syslog-topic-nonprod-nonpci-ife:2:1"
-#     "syslog-topic-prod-unregulated:2:1"
-#     "syslog-topic-nonprod-unregulated:2:1"
-#     "syslog-topic-network:2:1"
-# )
-
 TOPICS=(
-    "syslog-topic:2:1"
-    "filebeat-logs:2:1"
+    "logs-prod-nonpci-syslog:2:1"
+    "logs-prod-nonpci-filebeat:2:1"
+    "logs-prod-nonpci-fluentbit:2:1"
+    "logs-prod-nonpci-log4j:2:1"
 )
 
 # Log-source topics are flow events, not keyed state — they are created
@@ -64,8 +58,8 @@ for ENTRY in "${TOPICS[@]}"; do
 
     EXTRA_CONFIG=(--config "retention.ms=${BUS_RETENTION_MS}")
     case "$TOPIC" in
-        syslog-topic*)
-            # Syslog source streams: explicit delete policy + retention window.
+        logs-*)
+            # Log source streams: explicit delete policy + retention window.
             EXTRA_CONFIG+=(--config "cleanup.policy=delete")
             ;;
     esac

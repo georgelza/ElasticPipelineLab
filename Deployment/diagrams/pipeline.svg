@@ -81,11 +81,11 @@
     <text x="225" y="84" text-anchor="middle" font-size="10" fill="#E0E7FF">Docker Compose</text>
   </g>
 
-  <!-- 3. Kafka (syslog-topic) -->
+  <!-- 3. Kafka (logs-prod-nonpci-syslog) -->
   <g filter="url(#shadow)">
     <rect x="325" y="40" width="120" height="60" rx="8" fill="url(#kafkaGrad)" />
     <text x="385" y="67" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">Kafka</text>
-    <text x="385" y="84" text-anchor="middle" font-size="10" fill="#CFFAFE">syslog-topic</text>
+    <text x="385" y="84" text-anchor="middle" font-size="8" fill="#CFFAFE">logs-prod-nonpci-syslog</text>
   </g>
 
   <!-- 4. Container logs -->
@@ -102,11 +102,11 @@
     <text x="225" y="194" text-anchor="middle" font-size="10" fill="#E0F2FE">DaemonSet</text>
   </g>
 
-  <!-- 6. Kafka (filebeat-logs) -->
+  <!-- 6. Kafka (logs-prod-nonpci-fluentbit) -->
   <g filter="url(#shadow)">
     <rect x="325" y="150" width="120" height="60" rx="8" fill="url(#kafkaGrad)" />
     <text x="385" y="177" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">Kafka</text>
-    <text x="385" y="194" text-anchor="middle" font-size="10" fill="#CFFAFE">filebeat-logs</text>
+    <text x="385" y="194" text-anchor="middle" font-size="8" fill="#CFFAFE">logs-prod-nonpci-fluentbit</text>
   </g>
 
   <!-- 7. Kafka Connect ES Sink -->

@@ -388,7 +388,7 @@ docker compose exec filebeat-collector ping connect
 The Filebeat collector will forward these OS log files to Kafka:
 
 | Log File Path | Description | Log Source |
-|---------------|-------------|------------|
+|:--- |:--- |:--- |
 | `/var/log/auth.log` | Authentication logs | System authentication |
 | `/var/log/syslog` | System messages | General system messages |
 | `/var/log/messages` | General system messages | System-wide messages |
