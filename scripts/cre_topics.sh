@@ -28,20 +28,25 @@ ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 COMPOSE_FILE="${COMPOSE_FILE:-${ROOT}/docker-compose.yml}"
 
 # Format: "topic_name:partitions:replication_factor"
+# TOPICS=(
+#     "syslog-topic:2:1"
+#     "filebeat-logs:2:1"
+#     "syslog-topic-prod-pci:2:1"
+#     "syslog-topic-prod-nonpci:2:1"
+#     "syslog-topic-prod-pci-ife:2:1"
+#     "syslog-topic-prod-nonpci-ife:2:1"
+#     "syslog-topic-nonprod-pci:2:1"
+#     "syslog-topic-nonprod-nonpci:2:1"
+#     "syslog-topic-nonprod-pci-ife:2:1"
+#     "syslog-topic-nonprod-nonpci-ife:2:1"
+#     "syslog-topic-prod-unregulated:2:1"
+#     "syslog-topic-nonprod-unregulated:2:1"
+#     "syslog-topic-network:2:1"
+# )
+
 TOPICS=(
     "syslog-topic:2:1"
     "filebeat-logs:2:1"
-    "syslog-topic-prod-pci:2:1"
-    "syslog-topic-prod-nonpci:2:1"
-    "syslog-topic-prod-pci-ife:2:1"
-    "syslog-topic-prod-nonpci-ife:2:1"
-    "syslog-topic-nonprod-pci:2:1"
-    "syslog-topic-nonprod-nonpci:2:1"
-    "syslog-topic-nonprod-pci-ife:2:1"
-    "syslog-topic-nonprod-nonpci-ife:2:1"
-    "syslog-topic-prod-unregulated:2:1"
-    "syslog-topic-nonprod-unregulated:2:1"
-    "syslog-topic-network:2:1"
 )
 
 # Log-source topics are flow events, not keyed state — they are created

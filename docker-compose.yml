@@ -15,10 +15,10 @@ services:
     image: confluentinc/cp-kafka:7.9.6
     container_name: broker
     hostname: broker
-    networks:
-      elastic:
-        # Static IP so the k8s FluentBit DaemonSet hostAliases entry stays valid.
-        ipv4_address: 172.20.0.2
+    # networks:
+    #   elastic:
+    #     # Static IP so the k8s FluentBit DaemonSet hostAliases entry stays valid.
+    #     ipv4_address: 172.20.0.2
     ports:
       - "9092:9092"
       - "9101:9101"
@@ -125,12 +125,16 @@ services:
       - PGID=1000        # Match your local group ID
       - TZ=Etc/UTC       # Set your desired timezone
     volumes:
-      - ./conf/syslog-ng-config:/config       # Location for your custom syslog-ng.conf
-      - ./data/syslog-ng/logs:/var/log/syslog # Destination folder where logs will accumulate
+      # The LinuxServer image writes config + runtime (persist/pid/control files
+      # and s6 service logs) into /config. We mount a dedicated dir from ./data
+      # so these writes never pollute ./conf. The syslog-ng.conf is provisioned
+      # here from ./conf by `make run` (see Makefile).
+      - ./data/syslog-ng/config:/config
+      # Destination folder where logs will accumulate.
+      - ./data/syslog-ng/logs:/var/log/syslog
     depends_on:
       - connect
-    networks:
-      - elastic
+
 
    # RustFS S3 storage service 
   rustfs:
@@ -149,8 +153,7 @@ services:
       - ./data/rustfs:/data
     depends_on:
       - broker
-    networks:
-      - elastic
+
 
   # Filebeat service for collecting logs and forwarding to Kafka
   filebeat:
@@ -165,8 +168,6 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers
     depends_on:
       - broker
-    networks:
-      - elastic
     healthcheck:
       test: ["CMD-SHELL", "filebeat test config -e"]
       interval: 30s
@@ -174,8 +175,12 @@ services:
       retries: 3
 
 networks:
-  elastic:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+  default:
+    name: elastic
+
+# networks:
+#   elastic:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.20.0.0/16

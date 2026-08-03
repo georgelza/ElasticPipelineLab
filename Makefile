@@ -61,6 +61,11 @@ k8s:
 run:
 	@echo "🚀 Precreating required volumes..."
 
+	mkdir -p ./data/elasticsearch
+	mkdir -p ./data/rustfs
+	mkdir -p ./data/syslog-ng
+	mkdir -p ./data/vc1
+
 	docker compose -p elastic up -d \
 		broker schema-registry control-center connect \
 		syslog-ng rustfs \
@@ -83,8 +88,13 @@ createtopics:
 # Utility commands
 down:
 	@echo "🚀 Tear down full stack..."
-	docker compose -p elastic down 
-
+	docker compose -p elastic down  -v
+	
+	cd ./data; rm -rf elasticsearch
+	cd ./data; rm -rf rustfs
+	cd ./data; rm -rf syslog-ng
+	cd ./data; rm -rf vc1
+	
 ps:
 	docker compose -p elastic ps
 
