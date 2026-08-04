@@ -323,7 +323,7 @@ spec:
           # Kafka output
           destination d_kafka {
               kafka(
-                  bootstrap_servers("connect:8083")
+                  bootstrap_servers("broker:29092")
                   topic("logs-prod-nonpci-syslog")
                   key("syslog")
               );
@@ -424,7 +424,7 @@ data:
     # Kafka output
     destination d_kafka {
         kafka(
-            bootstrap_servers("connect:8083")
+            bootstrap_servers("broker:29092")
             topic("logs-prod-nonpci-syslog")
             key("syslog")
         );
@@ -481,7 +481,7 @@ data:
     # Destinations
     destination d_auth {
         kafka(
-            bootstrap_servers("connect:8083")
+            bootstrap_servers("broker:29092")
             topic("syslog-auth")
             key("auth")
         );
@@ -489,7 +489,7 @@ data:
     
     destination d_syslog {
         kafka(
-            bootstrap_servers("connect:8083")
+            bootstrap_servers("broker:29092")
             topic("syslog-all")
             key("syslog-all")
         );

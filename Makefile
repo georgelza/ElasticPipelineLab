@@ -51,6 +51,13 @@ Available commands:
 	make elastic-setup	- (Re)configure Elasticsearch (ILM/templates) + Kibana
 					  data views
 
+	make kibana-dashboards	- Provision the per-feed Kibana dashboards (syslog /
+					  filebeat / fluentbit data views + saved searches +
+					  visualizations + dashboards)
+
+	make snapshot		- Take an ad-hoc snapshot of logs-prod-nonpci-* into
+					  the prod-nonpci S3 repository
+
 	make s3-snapshots	- (Re)configure the RustFS S3 snapshot repositories
 					  (one per security classification bucket) + the
 					  logs-slm SLM policy (requires ES reachable via
@@ -124,6 +131,9 @@ deployk8s:
 	@echo "🚀 Configuring Elasticsearch (ILM policy + index templates) and Kibana data views..."
 	make elastic-setup
 
+	@echo "🚀 Provisioning the per-feed Kibana dashboards (syslog / filebeat / fluentbit)..."
+	make kibana-dashboards
+
 	@echo "🚀 Configuring the Kafka Connect Elasticsearch sink connector..."
 	make sink
 
@@ -161,6 +171,23 @@ sink:
 	cd scripts && ./configure_es_sink.sh
 	@echo "✅ ... ES sink connector configured"
 .PHONY: sink
+
+
+# Standalone: provision the per-feed Kibana dashboards.
+kibana-dashboards:
+	@echo "🚀 Provisioning Kibana dashboards (scripts/configure_kibana_dashboards.sh)..."
+	cd scripts && ./configure_kibana_dashboards.sh
+	@echo "✅ ... Kibana dashboards provisioned"
+.PHONY: kibana-dashboards
+
+
+# Standalone: ad-hoc snapshot of the account's log indices into the prod-nonpci
+# repository (SLM logs-slm covers the same indices daily at 01:00 UTC).
+snapshot:
+	@echo "🚀 Taking ad-hoc snapshot of $(or $(SNAPSHOT_INDICES),logs-prod-nonpci-*) → $(or $(SNAPSHOT_REPO),prod-nonpci) (scripts/take_snapshot.sh)..."
+	cd scripts && ./take_snapshot.sh
+	@echo "✅ ... snapshot taken"
+.PHONY: snapshot
 
 
 # Standalone: (re)register the RustFS S3 snapshot repositories (eight

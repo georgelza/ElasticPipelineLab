@@ -1,6 +1,12 @@
 # docker-compose.yml
 # ─────────────────────────────────────────────────────────────────────────────
 #
+# This file contains our services that represent supporting solutions, i.e. a external Kafka cluster
+# a external S3 object store.
+# We also have syslog-ng running as a service/acting as the account syslog forwarder and a filebeat, to consume/ingest these
+# service log files into our larger Elastic log environment deployed on our log analytics solution hosted on our Kubernetes cluster
+#
+#
 # Usage:
 #   docker compose up                      # start full stack  (all terminal output)
 #   docker compose up -d                   # detached

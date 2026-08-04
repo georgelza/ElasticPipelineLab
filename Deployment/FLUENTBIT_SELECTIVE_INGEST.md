@@ -6,7 +6,7 @@ This document describes how to configure the Kubernetes FluentBit daemonset to s
 
 ### 1. Namespace-based Filtering
 
-To filter logs by namespace, modify the FluentBit configuration in `fluent-bit-config.yaml`:
+To filter logs by namespace, modify the FluentBit configuration in `k8s/3.01.fluent-bit-config.yaml`:
 
 ```yaml
 [FILTER]
@@ -64,17 +64,17 @@ data:
 
     [INPUT]
         Name        tail
-        Path        /var/log/*.log
-        Parser      docker
+        Path        /var/log/containers/*.log
+        Parser      cri-log
+        Tag         kube.*
         Refresh_Interval 5
-        Exit_On_Eof true
+        Skip_Long_Lines On
 
     [INPUT]
         Name        tail
-        Path        /var/lib/docker/containers/*/*-json.log
-        Parser      docker
+        Path        /var/log/*.log
+        Exclude_Path /var/log/containers/*
         Refresh_Interval 5
-        Exit_On_Eof true
 
     [FILTER]
         Name        kubernetes
@@ -107,8 +107,8 @@ data:
     [OUTPUT]
         Name kafka
         Match *
-        brokers kafka:29092
-        topics fluent-bit-logs
+        brokers broker:29092
+        topics logs-prod-nonpci-fluentbit
         format json
         # Include metadata fields for downstream filtering
         # These can be used as Kafka headers to match on downstream consumers
@@ -121,7 +121,7 @@ data:
 1. **Update ConfigMap**: Apply the modified configuration to your Kubernetes cluster:
 
    ```bash
-   kubectl apply -f k8s/fluent-bit-config.yaml
+   kubectl apply -f k8s/3.01.fluent-bit-config.yaml
    ```
 
 2. **Restart FluentBit**: Ensure the daemonset picks up the new configuration:

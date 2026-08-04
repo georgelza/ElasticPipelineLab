@@ -10,32 +10,24 @@ This document describes how to configure the Docker Compose Filebeat service to 
 
 ## Filebeat Configuration Details
 
-The Filebeat configuration file in `conf/filebeat.yml` is structured to collect logs from multiple sources:
+The Filebeat configuration file in `data/filebeat/config/filebeat.yml` is structured to collect logs from multiple sources:
 
 ### Input Configuration
 
 ```yaml
 filebeat.inputs:
-- type: docker
-  containers:
-    paths:
-      - /var/lib/docker/containers/*/*-json.log
-  json:
-    keys_under_root: true
-    overwrite_keys: true
-  fields:
-    log_type: docker
-
 - type: log
+  enabled: true
   paths:
     - /var/log/*.log
+    - /var/lib/docker/containers/*.log
   fields:
-    log_type: system
+    source: docker-compose-filebeat
 ```
 
-The configuration includes two input types:
-1. **Docker Container Logs** - Gathers JSON-formatted logs from containers via `/var/lib/docker/containers/*/*-json.log`
-2. **System Logs** - Collects regular log files from `/var/log/*.log`
+The configuration includes two log sources:
+1. **System Logs** - Collects regular log files from `/var/log/*.log`
+2. **Docker Container Logs** - Gathers JSON-formatted logs from containers via `/var/lib/docker/containers/*.log`
 
 ### Output Configuration  
 
@@ -53,7 +45,6 @@ This configuration ensures that:
 
 - Logs are sent to the Kafka broker running at `broker:29092` 
 - Logs are published to the `logs-prod-nonpci-filebeat` topic
-- Partitioning is based on `log_type` (docker vs system)
 - Gzip compression is applied for efficient transmission
 - Messages don't exceed 1MB in size
 
@@ -69,7 +60,7 @@ The Filebeat service definition in `docker-compose.yml` ensures proper container
     user: root
     command: filebeat -e -c /etc/filebeat/filebeat.yml
     volumes:
-      - ./conf/filebeat/filebeat.yml:/etc/filebeat/filebeat.yml
+      - ./data/filebeat/config/filebeat.yml:/etc/filebeat/filebeat.yml
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
     depends_on:
@@ -112,7 +103,7 @@ docker logs filebeat
 
 4. Ensure connectivity to broker:
 ```bash
-docker exec filebeat ping kafka:29092
+docker exec filebeat ping broker
 ```
 
 ## Troubleshooting

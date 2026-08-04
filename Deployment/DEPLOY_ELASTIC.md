@@ -10,7 +10,7 @@
 
 Log-analytics pipeline for this repo:
 
-![Log Analytics Pipeline](diagrams/pipeline.svg)
+<img src="diagrams/pipeline.svg" alt="Log Analytics Pipeline" width="800" height="500">
 
 
 ## Architecture Overview

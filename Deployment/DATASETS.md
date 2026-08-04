@@ -172,10 +172,17 @@ The base path is derived from `.env`:
 Ad-hoc snapshot of all log indices into a classification repository:
 
 ```bash
-curl -X PUT "localhost:9200/_snapshot/prod-nonpci/snap-$(date +%Y%m%d)" \
-  -H 'Content-Type: application/json' \
-  -d '{"indices": "logs-prod-nonpci-*", "ignore_unavailable": true}'
+make snapshot
+# equivalent to: cd scripts && ./take_snapshot.sh
+#   PUT _snapshot/prod-nonpci/logs-prod-nonpci-<ts>
+#   {"indices": "logs-prod-nonpci-*", "ignore_unavailable": true}
+#   (SNAPSHOT_REPO / SNAPSHOT_INDICES env vars override the defaults)
 ```
+
+The `logs-prod-nonpci-*` indices (syslog / filebeat / fluentbit / log4j) are
+snapshotted into the `prod-nonpci` repository by both the `logs-slm` SLM policy
+(daily 01:00 UTC) and the ad-hoc `make snapshot` target above — see
+`Deployment/DEPLOY_KIBANA.md` for the Kibana integration.
 
 ## Security Considerations:
 

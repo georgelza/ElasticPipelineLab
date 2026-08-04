@@ -46,15 +46,15 @@ The deployment follows a modern log analytics architecture with the following co
 
 ### 1. High-level Architecture
 
-![Architecture Overview](diagrams/architecture.png)
+<img src="diagrams/architecture.png" alt="Architecture Overview" width="800" height="400">
 
 ### 2. Docker Compose Infrastructure
 
-![Docker Compose Stack](diagrams/DockerCompose.svg)
+<img src="diagrams/DockerCompose.svg" alt="Docker Compose Stack" width="800" height="400">
 
 ### 3. Kubernetes Elastic Stack Deployment
 
-![Kubernetes Log Analytics Stack](diagrams/K8s.svg)
+<img src="diagrams/K8s.svg" alt="Kubernetes Log Analytics Stack" width="800" height="400">
 
 ---
 
@@ -109,6 +109,8 @@ graph TD
 ---
 
 ## Deployment Layers
+
+<img src="diagrams/DeploymentFlow.png" alt="Deployment Flow" width="600" height="600">
 
 The stack is split into five layers. **Layer 0** runs in Docker Compose on the
 host (off-cluster supporting services); **Layers 1–4** are Kubernetes manifests
@@ -385,6 +387,23 @@ Configuration parameters:
 - `S3_BUCKET_NAME`: S3 bucket name (default: my-log-bucket)
 - `S3_REGION`: AWS region (default: af-south-1)
 
+## Kibana
+
+Kibana runs in the vcluster (`k8s/2.01.kibana.yaml`) served under
+`server.basePath: /kibana` and fronted by the Traefik `/kibana` route (see
+`Deployment/TRAEFIK.md`). Per-feed data views, saved searches, visualizations
+and **dashboards for the three log feeds** (syslog / filebeat / fluentbit) are
+provisioned as code:
+
+```bash
+make deployk8s            # includes: make elastic-setup + make kibana-dashboards ...
+make kibana-dashboards    # re-run anytime (idempotent) — per-feed dashboards
+make snapshot             # ad-hoc snapshot of logs-prod-nonpci-* → prod-nonpci
+```
+
+End-to-end integration steps, the Saved Objects API and troubleshooting are
+documented in `Deployment/DEPLOY_KIBANA.md`.
+
 All S3 credentials are stored in environment variables and should be managed
 securely (the ES side uses a pre-seeded keystore — see
 `k8s/1.03.es-s3-credentials.yaml`). The actual storage folder structure is
@@ -431,6 +450,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For support or questions, please refer to:
 
 - `DEPLOY_ELASTIC.md`: Complete Kubernetes/Docker deployment documentation
+- `DEPLOY_KIBANA.md`: Kibana ↔ Elasticsearch integration, dashboards & Saved Objects API
 - `DEPLOY_*.md`: Detailed component deployment instructions
 - Existing comments in all configuration files
 

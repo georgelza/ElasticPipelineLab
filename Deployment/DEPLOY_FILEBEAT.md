@@ -1,5 +1,13 @@
 # Filebeat Installation and Configuration
 
+> **Current deployment note:** Filebeat runs as a **Docker Compose service**
+> that collects host logs and publishes them to Kafka
+> (`logs-prod-nonpci-filebeat`, brokers `broker:29092`) — see
+> `DEPLOY_FILEBEAT_DOCKER.md`. The Kubernetes node-log collector is **FluentBit**
+> (k8s DaemonSet → `logs-prod-nonpci-fluentbit`), not a Filebeat DaemonSet. The
+> k8s Filebeat → Elasticsearch pattern below is a **reference/alternative**
+> pattern and is not part of the deployed stack.
+
 ## Overview
 
 This document provides step-by-step instructions for installing and configuring Filebeat to collect logs and forward them to the Elasticsearch stack.
@@ -40,8 +48,9 @@ data:
 
     output.elasticsearch:
       hosts: ["http://elasticsearch:9200"]
-      username: elastic
-      password: changeme
+      # NOTE: security is DISABLED in this deployment (xpack.security.enabled:
+      # false — homelab), so no username/password are configured. If you enable
+      # security, add the credential fields here.
       index: "filebeat-%{+yyyy.MM.dd}"
     setup.template.enabled: false
     setup.ilm.enabled: false
@@ -230,7 +239,7 @@ kubectl logs -n elastic -l app=filebeat --previous
 Solution: Verify connection parameters in the configuration file:
 
 ```bash
-kubectl exec -it -n elastic <filebeat-pod-name> -- curl -u elastic:password http://elasticsearch:9200/_cluster/health?pretty
+kubectl exec -it -n elastic <filebeat-pod-name> -- curl http://elasticsearch:9200/_cluster/health?pretty
 ```
 
 ### Issue: Incorrect log format
@@ -267,8 +276,8 @@ This guide describes how to install and configure a Filebeat collector directly 
 
 This deployment follows a direct-on-OS pattern where:
 1. The Filebeat collector runs as a Docker container on the host system
-2. It forwards logs to Kafka via the `connect` container configured in the Docker Compose environment
-3. The `connect:8083` endpoint allows Kafka Connect to process these logs
+2. It forwards logs to the Kafka **broker** (`broker:29092`) on the Docker Compose network
+3. The `elasticsearch-sink` Kafka Connect connector indexes the topic into Elasticsearch
 
 ## Deployment Process
 
@@ -314,8 +323,8 @@ filebeat.inputs:
     type: application-logs
 
 output.kafka:
-  hosts: ["connect:8083"]
-  topic: "filebeat-topic"
+  hosts: ["broker:29092"]
+  topic: "logs-prod-nonpci-filebeat"
   key: "filebeat"
   required_acks: 1
   compression: gzip
@@ -380,7 +389,7 @@ docker compose logs -f
 docker ps
 
 # Check if the container can connect to Kafka
-docker compose exec filebeat-collector ping connect
+docker compose exec filebeat-collector ping broker
 ```
 
 ## Source Log Files Analysis
@@ -461,8 +470,8 @@ Adjust these values in the Docker Compose file based on your system's capacity a
 
 ## Integration with Kafka Connect
 
-This configuration will deliver events to the "filebeat-topic" in Kafka, which can be:
-1. Connected to Elasticsearch through Kafka Connect
+This configuration will deliver events to the "logs-prod-nonpci-filebeat" topic in Kafka, which can be:
+1. Indexed into Elasticsearch through the `elasticsearch-sink` Kafka Connect connector
 2. Monitored via Control Center
 3. Processed by any other Kafka consumers
 
@@ -470,6 +479,6 @@ This configuration will deliver events to the "filebeat-topic" in Kafka, which c
 
 After deployment, you should see:
 1. Container named `filebeat-collector` running
-2. Log entries showing successful connection to `connect:8083`
+2. Log entries showing successful connection to `broker:29092`
 3. Forwarded log entries appearing in Kafka topics
 4. Integration with existing Kafka Connect pipeline
