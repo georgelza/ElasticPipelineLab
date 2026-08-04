@@ -138,6 +138,8 @@ lab-only pattern — production k8s uses proper network integration).
 
 ### Layer 1 — Elasticsearch (`kubectl apply -f "k8s/1.*"`)
 
+**NOTE** Layer 1 is dependant on the user having deployed the Kubernetes cluster on vCluster. See `Initialize Kubernetes Cluster` below.
+
 | File | Contents |
 |:--- |:--- |
 | `1.00.elastic-namespace.yaml` | `elastic` namespace |
@@ -189,11 +191,11 @@ lab-only pattern — production k8s uses proper network integration).
 2. Set up vcluster (see vcluster.yml)
 3. Ensure proper host networking
 
-### 1. Initialize Kubernetes Cluster
 
 ---
+## Initialize Kubernetes Cluster
 
-## Basic Installation/HOST Preperation
+### 1. Basic Installation/HOST Preperation
 
 1. Install vCluster
 
