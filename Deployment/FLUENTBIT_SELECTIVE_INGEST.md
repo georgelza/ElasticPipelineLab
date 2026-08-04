@@ -99,7 +99,8 @@ data:
     [FILTER]
         Name modify
         Match *
-        Add timestamp ${UNIXTIME}
+        Rename time @timestamp
+        Add source k8s-fluent-bit
         # Add custom fields based on namespace or labels
         Add namespace ${kubernetes_namespace}
         Add service ${kubernetes_label_app}
@@ -115,6 +116,16 @@ data:
         header namespace ${kubernetes_namespace}
         header service ${kubernetes_label_app}
 ```
+
+> **Base config vs. example.** The `[INPUT]` blocks, the final `modify` filter
+> (`Rename time @timestamp` / `Add source k8s-fluent-bit`) and the `[OUTPUT]`
+> block are the **deployed** configuration — they must stay identical to
+> `k8s/3.01.fluent-bit-config.yaml`. The two `[FILTER] Name kubernetes` blocks
+> above are the **selective-ingest addition** shown by this guide: if you apply
+> them, keep the deployed `modify` filter in place (it is what produces the
+> `@timestamp` field the data views rely on) and do not remove the `source`
+> tag or the Kafka output. `k8s/3.01.fluent-bit-config.yaml` itself contains
+> only the `modify` filter — no `kubernetes` filter.
 
 ### 5. Implementation Steps
 

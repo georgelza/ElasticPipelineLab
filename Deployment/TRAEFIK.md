@@ -17,10 +17,10 @@ IngressRoute (ingress-traefik1)
         └── /elasticsearch   ──► elasticsearch.elastic:9200 (strip-elasticsearch middleware)
 ```
 
-> Only the routes above are part of this project. The `monitoring` (Prometheus,
-> Grafana, Alertmanager, Thanos) and `data` (RustFS) routes that exist in the
-> ingress manifest are leftovers from a previous project and are **not**
-> deployed here — those namespaces/services do not exist on this cluster.
+> Only the two routes above are part of this project — `k8s/4.04.traefik-ingressroutes.yaml`
+> defines exactly one `Middleware` (`strip-elasticsearch`) and one `IngressRoute`
+> (`elastic-ingress` in `ingress-traefik1`) carrying `/kibana` and `/elasticsearch`.
+> No other namespaces/services are routed by this ingress.
 
 ## Manifests
 

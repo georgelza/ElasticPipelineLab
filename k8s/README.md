@@ -10,7 +10,7 @@ digit is the apply order *within* that layer (zero-padded so 10 sorts after 2).
 ## Layer Map
 
 | Layer | Prefix | What it deploys |
-|-------|--------|-----------------|
+|:--- |:--- |:--- |
 | 1 — Elastic | `1.*` | `elastic` namespace + PVs/PVCs + Elasticsearch (2-node cluster) |
 | 2 — Kibana | `2.*` | Kibana Deployment + Service (basePath `/kibana`) |
 | 3 — FluentBit | `3.*` | FluentBit ConfigMap + DaemonSet + metrics Service |
@@ -19,7 +19,7 @@ digit is the apply order *within* that layer (zero-padded so 10 sorts after 2).
 ## Files
 
 | # | File | What it deploys |
-|---|------|-----------------|
+|:--- |:--- |:--- |
 | 1.00 | `1.00.elastic-namespace.yaml` | `elastic` namespace |
 | 1.01 | `1.01.elastic-storage.yaml` | PVs + PVCs for both ES nodes: `elasticsearch-pv-1`/`elasticsearch-data-1` (`/data/elasticsearch`) and `elasticsearch-pv-2`/`elasticsearch-data-2` (`/data/elasticsearch-2`) |
 | 1.02 | `1.02.elasticsearch.yaml` | ES ConfigMap + 2 Deployments (`elasticsearch-1` → es-1/worker-1, `elasticsearch-2` → es-2/worker-2) + load-balancer & headless Services — one 2-node cluster |

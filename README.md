@@ -19,7 +19,8 @@ The deployment follows a modern log analytics architecture with the following co
 
 - **Elasticsearch**: Distributed search and analytics engine for log storage, little known fact, it's a Vector database at it's core, as such allows for  much wider set of use cases. 
 - **Kibana**: Web interface for data visualization and exploration
-- **Filebeat**: Lightweight log shipper, for our use case, for Kubernetes pod logs
+- **Filebeat**: Lightweight log shipper, for our use case, for Docker Compose host/system logs
+- **FluentBit**: Kubernetes-native log collection (pod logs)
 
 ### Log Collection
 
@@ -265,9 +266,9 @@ All Elastic components deployed in the **elastic** namespace for consistent mana
 
 ### 4. Scalability
 
-- Elasticsearch: 3+ node cluster with proper disk storage
-- Kibana: 2+ replica deployment
-- Filebeat: DaemonSet for full node coverage
+- Elasticsearch: 2-node cluster with local disk storage (`es-1` on worker-1, `es-2` on worker-2)
+- Kibana: single-replica Deployment (scalable)
+- FluentBit: DaemonSet for full node coverage (k8s pod logs); Filebeat runs as a Compose service (host logs)
 
 ### 5. Storage Integration
 
@@ -277,9 +278,8 @@ All Elastic components deployed in the **elastic** namespace for consistent mana
 
 ### 6. Security
 
-- Elasticsearch security with authentication
-- Network policies for internal communication
-- TLS support for transmission security
+- Lab deployment: Elasticsearch security is **disabled** (`xpack.security.enabled: false`) — no TLS, plaintext Kafka — as this is a local simulation
+- Traefik RBAC is restricted to the `ingress-traefik1` namespace
 
 ---
 
@@ -331,15 +331,19 @@ filebeat:
   image: docker.elastic.co/beats/filebeat:8.14.0
   container_name: filebeat
   hostname: filebeat
+  user: root
   command: filebeat -e -c /etc/filebeat/filebeat.yml
   volumes:
-    - ./conf/filebeat.yml:/etc/filebeat/filebeat.yml
+    - ./data/filebeat/config/filebeat.yml:/etc/filebeat/filebeat.yml
     - /var/log:/var/log
     - /var/lib/docker/containers:/var/lib/docker/containers
   depends_on:
     - broker
-  networks:
-    - elastic
+  healthcheck:
+    test: ["CMD-SHELL", "filebeat test config -e"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
 ```
 
 The Filebeat service in Docker Compose will:
@@ -354,10 +358,11 @@ For detailed configuration and setup instructions, see [DEPLOY_FILEBEAT_DOCKER.m
 
 ## Security Considerations
 
-- All services use secure communication channels
-- Authentication enabled for Elastic components
-- RBAC policies to limit access
-- Network policies to restrict inter-service communication
+- **Lab-only posture:** Elasticsearch runs with security **disabled**
+  (`xpack.security.enabled: false`, see `k8s/1.02.elasticsearch.yaml`) and Kafka
+  is plaintext — this is a local simulation, not a hardened deployment
+- RBAC is limited to the Traefik layer (`k8s/4.02.traefik-rbac.yaml`)
+- No NetworkPolicies or TLS are deployed; add them before any production use
 
 ## S3 Storage Configuration
 
@@ -378,14 +383,14 @@ element, date segments are zero-padded — `year=yyyy`, `month=mm`, `day=dd`):
 <S3 endpoint>/<project name = log_analytics>/<bucket == aws account name>/year=yyyy/month=mm/day=dd/<instanceId or Hostname>
 ```
 
-Configuration parameters:
+Configuration parameters (repo-root `.env`; consumed by
+`scripts/configure_s3_snapshots.sh` — the S3 client credentials are also baked
+into the ES keystore in `k8s/1.03.es-s3-credentials.yaml`):
 
-- `S3_ENDPOINT`: The S3 endpoint URL
-- `S3_PROJECT_NAME`: Project identifier — first path element (default: log_analytics)
-- `S3_AWS_ACCOUNT_NAME`: Default AWS account identifier — account names map
-  to bucket names (default: elastic-account)
-- `S3_BUCKET_NAME`: S3 bucket name (default: my-log-bucket)
-- `S3_REGION`: AWS region (default: af-south-1)
+- `S3_ENDPOINT`: The S3 endpoint URL (lab: `http://s3.amazonaws.com` legacy value — the live stack talks to RustFS at `http://127.0.0.1:9000` via `RUSTFS_ENDPOINT`)
+- `S3_PROJECT_NAME`: Project identifier — first path element (`log_analytics`)
+- `S3_AWS_ACCOUNT_NAME` / `S3_BUCKET_NAME`: legacy values (`sec-proxy` / `payinc`) — the actual buckets and snapshot repositories are named after the eight account classifications (see above); log feeds use `logs-<account>-*` topic naming
+- `S3_REGION`: AWS region (`af-south-1`)
 
 ## Kibana
 

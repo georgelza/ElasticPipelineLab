@@ -80,7 +80,7 @@ spec:
       serviceAccountName: filebeat
       containers:
       - name: filebeat
-        image: docker.elastic.co/beats/filebeat:8.11.3
+        image: docker.elastic.co/beats/filebeat:8.14.0
         resources:
           requests:
             memory: "128Mi"
@@ -345,7 +345,7 @@ version: '3.8'
 
 services:
   filebeat-collector:
-    image: docker.elastic.co/beats/filebeat:8.11.3
+    image: docker.elastic.co/beats/filebeat:8.14.0
     container_name: filebeat-collector
     hostname: filebeat-collector
     volumes:
@@ -449,7 +449,7 @@ Ensure that:
 
 2. Verify Kafka topics exist:
    ```bash
-   docker compose exec broker kafka-topics.sh --bootstrap-server localhost:9092 --list
+   docker compose exec broker kafka-topics --bootstrap-server localhost:9092 --list
    ```
 
 ## Resource Management

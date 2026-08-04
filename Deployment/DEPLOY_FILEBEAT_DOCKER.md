@@ -35,8 +35,6 @@ The configuration includes two log sources:
 output.kafka:
   hosts: ["broker:29092"]
   topic: "logs-prod-nonpci-filebeat"
-  partition.key: "log_type"
-  required_acks: 1
   compression: gzip
   max_message_bytes: 1000000
 ```
@@ -111,7 +109,7 @@ docker exec filebeat ping broker
 ### Common Issues and Solutions
 
 1. **"Could not connect to Kafka"**:
-   - Verify the Kafka broker is running (`docker-compose ps`)
+   - Verify the Kafka broker is running (`docker compose ps`)
    - Confirm `broker:29092` is accessible from the Filebeat container
    - Check Docker network connectivity (`docker network ls`)
 
@@ -120,7 +118,7 @@ docker exec filebeat ping broker
    - Verify that host directories exist and are readable
 
 3. **"Filebeat configuration error"**:
-   - Validate `conf/filebeat.yml` syntax with `filebeat test config`
+   - Validate `data/filebeat/config/filebeat.yml` syntax with `filebeat test config`
    - Check the configuration file permissions
 
 ## Best Practices

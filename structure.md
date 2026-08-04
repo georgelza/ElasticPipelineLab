@@ -26,8 +26,9 @@ Short layout of all the artefacts that make up our project/article.
 │   ├── DEPLOY_SYSLOG.md                # Syslog deployment guide
 │   ├── FLUENTBIT_SELECTIVE_INGEST.md   # FluentBit filtering guide
 │   ├── DEPLOY_FILEBEAT.md              # Filebeat deployment guide
-│   ├── DEPLOY_ELASTIC.md               # Elastic Stack deployment guide
 │   ├── DEPLOY_FILEBEAT_DOCKER.md       # Filebeat Docker Compose deployment guide
+│   ├── DEPLOY_ELASTIC.md               # Elastic Stack deployment guide
+│   ├── DEPLOY_KIBANA.md                # Kibana integration / dashboards guide
 │   ├── DEPLOY_NG_FEED.md               # Syslog-ng deployment guide
 │   └── TRAEFIK.md                      # Traefik ingress layer guide
 |
@@ -65,12 +66,15 @@ Short layout of all the artefacts that make up our project/article.
 │   └── README.md                       # Kubernetes deployment instructions
 |
 ├── scripts/
+│   ├── README.md                       # Scripts overview / make-target mapping
 │   ├── configure_elastic.sh            # ES ILM policy + index templates + Kibana data views
 │   ├── configure_es_sink.sh            # Kafka Connect ES sink connector (topics.regex)
+│   ├── configure_kibana_dashboards.sh  # Kibana dashboards for the 3 log feeds (saved objects)
 │   ├── configure_s3_snapshots.sh       # 8 S3 snapshot repos + SLM policy
 │   ├── cre_topics.sh                   # Create logs-prod-nonpci-* Kafka topics
 │   ├── setup_macos_syslog.sh           # macOS Syslog setup script
-│   └── setup_macos_filebeat.sh         # macOS Filebeat setup script
+│   ├── setup_macos_filebeat.sh         # macOS Filebeat setup script
+│   └── take_snapshot.sh                # Ad-hoc ES snapshot (prod-nonpci repo)
 |
 ├── .env                                # Environment variables
 ├── .gitignore                          # Files/directories not to GIT sync
@@ -80,5 +84,6 @@ Short layout of all the artefacts that make up our project/article.
 ├── README.md                           # Main README with complete deployment instructions
 ├── structure.md                        # This file
 ├── Todo.md                             # Deployment tracking list
+├── Done.md                             # Archived history of completed work (sections 1-8)
 └── vcluster.yml                        # vCluster configuration for multi-node Kubernetes
 ```

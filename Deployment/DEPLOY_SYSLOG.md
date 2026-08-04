@@ -215,7 +215,7 @@ Ensure that:
 
 2. Verify Kafka topics exist:
    ```bash
-   docker compose exec broker kafka-topics.sh --bootstrap-server localhost:9092 --list
+   docker compose exec broker kafka-topics --bootstrap-server localhost:9092 --list
    ```
 
 ## Resource Management
@@ -258,8 +258,7 @@ After deployment, you should see:
 
 > **Deprecated:** the following Kubernetes DaemonSet/ConfigMap based syslog
 > deployment is **not used** in this repo. syslog-ng runs as a Docker Compose
-> service (see above). This section is kept only for historical reference and
-> contains outdated `connect:8083` broker references.
+> service (see above). This section is kept only for historical reference.
 
 ## Overview
 
@@ -566,7 +565,7 @@ Solution: Verify Kafka connectivity:
 kubectl exec -it -n elastic <kafka-pod> -- nc -z connect 8083
 
 # Monitor Kafka topics
-kubectl exec -it -n elastic <connect-pod> -- kafka-topics.sh --bootstrap-server broker:29092 --list
+kubectl exec -it -n elastic <connect-pod> -- kafka-topics --bootstrap-server broker:29092 --list
 ```
 
 ### Issue: File access permissions
